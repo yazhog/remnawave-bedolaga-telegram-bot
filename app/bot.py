@@ -1,7 +1,11 @@
 import logging
+from pathlib import Path
+
 from aiogram import Bot, Dispatcher, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import FSInputFile, Message
 import redis.asyncio as redis
 
 from app.config import settings
@@ -30,6 +34,49 @@ from app.handlers.admin import (
 from app.handlers.stars_payments import register_stars_handlers
 
 logger = logging.getLogger(__name__)
+
+
+# --- Monkey patches -------------------------------------------------------
+
+# Patch send_message to send image with caption by default
+LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "vpn_logo.png"
+_original_send_message = Bot.send_message
+
+
+async def _send_message_with_logo(
+    self: Bot, chat_id, text, *args, **kwargs
+):
+    use_image = kwargs.pop("use_image", True)
+    if use_image:
+        kwargs.pop("disable_web_page_preview", None)
+        photo = FSInputFile(LOGO_PATH)
+        return await self.send_photo(chat_id, photo=photo, caption=text, *args, **kwargs)
+    return await _original_send_message(self, chat_id, text, *args, **kwargs)
+
+
+Bot.send_message = _send_message_with_logo  # type: ignore[assignment]
+
+
+# Patch Message.edit_text to edit caption of photo messages
+_original_edit_text = Message.edit_text
+
+
+async def _edit_text_with_caption(
+    self: Message, text: str, **kwargs
+):
+    try:
+        kwargs.pop("disable_web_page_preview", None)
+        return await self.bot.edit_message_caption(
+            chat_id=self.chat.id,
+            message_id=self.message_id,
+            caption=text,
+            **kwargs,
+        )
+    except TelegramBadRequest:
+        return await _original_edit_text(self, text, **kwargs)
+
+
+Message.edit_text = _edit_text_with_caption  # type: ignore[assignment]
 
 
 async def debug_callback_handler(callback: types.CallbackQuery):

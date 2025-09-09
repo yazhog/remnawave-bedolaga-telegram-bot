@@ -51,7 +51,8 @@ async def handle_potential_referral_code(
         await message.answer(
             "❌ Неверный реферальный код.\n\n"
             "💡 Если у вас есть реферальный код, убедитесь что он введен правильно.\n"
-            "⏭️ Для продолжения регистрации без реферального кода используйте команду /start"
+            "⏭️ Для продолжения регистрации без реферального кода используйте команду /start",
+            use_image=False,
         )
         return True 
     
@@ -60,7 +61,7 @@ async def handle_potential_referral_code(
     data['referrer_id'] = referrer.id
     await state.set_data(data)
     
-    await message.answer("✅ Реферальный код принят!")
+    await message.answer("✅ Реферальный код принят!", use_image=False)
     logger.info(f"✅ Реферальный код {potential_code} применен для пользователя {message.from_user.id}")
     
     if current_state != RegistrationStates.waiting_for_referral_code.state:
@@ -69,7 +70,8 @@ async def handle_potential_referral_code(
         
         await message.answer(
             texts.RULES_TEXT,
-            reply_markup=get_rules_keyboard(language)
+            reply_markup=get_rules_keyboard(language),
+            use_image=False,
         )
         await state.set_state(RegistrationStates.waiting_for_rules_accept)
         logger.info("📋 Правила отправлены после ввода реферального кода")
@@ -227,7 +229,8 @@ async def cmd_start(message: types.Message, state: FSMContext, db: AsyncSession,
     
     await message.answer(
         texts.RULES_TEXT,
-        reply_markup=get_rules_keyboard(language)
+        reply_markup=get_rules_keyboard(language),
+        use_image=False,
     )
     logger.info(f"📋 Правила отправлены")
     
@@ -286,7 +289,8 @@ async def process_rules_accept(
                 try:
                     await callback.message.answer(
                         "У вас есть реферальный код? Введите его или нажмите 'Пропустить'",
-                        reply_markup=get_referral_code_keyboard(language)
+                        reply_markup=get_referral_code_keyboard(language),
+                        use_image=False,
                     )
                     await state.set_state(RegistrationStates.waiting_for_referral_code)
                     logger.info(f"🔍 Ожидание ввода реферального кода")
@@ -322,7 +326,8 @@ async def process_rules_accept(
             language = data.get('language', 'ru')
             await callback.message.answer(
                 "Произошла ошибка. Попробуйте принять правила еще раз:",
-                reply_markup=get_rules_keyboard(language)
+                reply_markup=get_rules_keyboard(language),
+                use_image=False,
             )
             await state.set_state(RegistrationStates.waiting_for_rules_accept)
         except:
@@ -347,10 +352,10 @@ async def process_referral_code_input(
     if referrer:
         data['referrer_id'] = referrer.id
         await state.set_data(data)
-        await message.answer("✅ Реферальный код применен!")
+        await message.answer("✅ Реферальный код применен!", use_image=False)
         logger.info(f"✅ Реферальный код применен")
     else:
-        await message.answer("❌ Неверный реферальный код")
+        await message.answer("❌ Неверный реферальный код", use_image=False)
         logger.info(f"❌ Неверный реферальный код")
         return
     
