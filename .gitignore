@@ -13,6 +13,11 @@
 !app/
 !app/**
 
+# Разрешаем папку assets/ и её содержимое
+!assets/
+!assets/**
+assets/vpn_logo.png
+
 # Дополнительно разрешаем README и лицензию (опционально)
 !README.md
 !LICENSE

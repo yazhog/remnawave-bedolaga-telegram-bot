@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 from aiogram import Bot, Dispatcher, types
 from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import FSInputFile
 import redis.asyncio as redis
 
 from app.config import settings
@@ -32,6 +34,20 @@ from app.handlers.stars_payments import register_stars_handlers
 logger = logging.getLogger(__name__)
 
 
+class LogoBot(Bot):
+    """Bot, automatically attaching a logo image to every text message."""
+
+    def __init__(self, *args, logo_path: str, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._logo_path = logo_path
+
+    async def send_message(self, chat_id, text, **kwargs):
+        logo = FSInputFile(self._logo_path)
+        kwargs.pop("disable_web_page_preview", None)
+        kwargs.pop("link_preview_options", None)
+        return await super().send_photo(chat_id, logo, caption=text, **kwargs)
+
+
 async def debug_callback_handler(callback: types.CallbackQuery):
     logger.info(f"🔍 DEBUG CALLBACK:")
     logger.info(f"  - Data: {callback.data}")
@@ -50,9 +66,12 @@ async def setup_bot() -> tuple[Bot, Dispatcher]:
     from aiogram.client.default import DefaultBotProperties
     from aiogram.enums import ParseMode
 
-    bot = Bot(
-        token=settings.BOT_TOKEN, 
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    logo_path = Path(__file__).resolve().parent.parent / "assets" / "vpn_logo.png"
+
+    bot = LogoBot(
+        token=settings.BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        logo_path=str(logo_path)
     )
     
     maintenance_service.set_bot(bot)
