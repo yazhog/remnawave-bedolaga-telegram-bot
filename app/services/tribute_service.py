@@ -218,7 +218,15 @@ class TributeService:
         
         try:
             amount_rubles = amount_kopeks / 100
-            
+
+            has_active_subscription = False
+            async for session in get_db():
+                db_user = await get_user_by_telegram_id(session, user_id)
+                has_active_subscription = bool(
+                    db_user and db_user.subscription and db_user.subscription.is_active
+                )
+                break
+
             text = (
                 f"✅ **Платеж успешно получен!**\n\n"
                 f"💰 Сумма: {int(amount_rubles)} ₽\n"
@@ -226,12 +234,30 @@ class TributeService:
                 f"🎉 Средства зачислены на баланс!\n\n"
                 f"Спасибо за оплату! 🙏"
             )
-            
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+
+            buttons = []
+            if has_active_subscription:
+                buttons.append([
+                    InlineKeyboardButton(
+                        text="⏱️ Продлить подписку",
+                        callback_data="subscription_extend"
+                    )
+                ])
+            else:
+                buttons.append([
+                    InlineKeyboardButton(
+                        text="💎 Купить подписку",
+                        callback_data="menu_buy"
+                    )
+                ])
+
+            buttons.extend([
                 [InlineKeyboardButton(text="💰 Мой баланс", callback_data="menu_balance")],
                 [InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")]
             ])
-            
+
+            keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+
             await self.bot.send_message(
                 user_id,
                 text,
