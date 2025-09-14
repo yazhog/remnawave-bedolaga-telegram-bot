@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from app.config import settings
 from app.database.crud.user import get_user_by_telegram_id, update_user
-from app.keyboards.inline import get_main_menu_keyboard
+from app.keyboards.inline import get_main_menu_keyboard, get_back_keyboard
 from app.localization.texts import get_texts
 from app.database.models import User
 from app.utils.user_utils import mark_user_as_had_paid_subscription
@@ -65,31 +65,12 @@ async def show_service_rules(
     db_user: User,
     db: AsyncSession
 ):
-    from app.database.crud.rules import get_current_rules_content
-    
-    rules_text = await get_current_rules_content(db, db_user.language)
-    
-    if not rules_text:
-        texts = get_texts(db_user.language)
-        rules_text = texts._get_default_rules(db_user.language) if hasattr(texts, '_get_default_rules') else """
-📋 <b>Правила использования сервиса</b>
+    texts = get_texts(db_user.language)
+    rules_text = texts.RULES_TEXT
 
-1. Запрещается использование сервиса для незаконной деятельности
-2. Запрещается нарушение авторских прав
-3. Запрещается спам и рассылка вредоносного ПО
-4. Запрещается использование сервиса для DDoS атак
-5. Один аккаунт - один пользователь
-6. Возврат средств производится только в исключительных случаях
-7. Администрация оставляет за собой право заблокировать аккаунт при нарушении правил
-
-<b>Принимая правила, вы соглашаетесь соблюдать их.</b>
-"""
-    
     await callback.message.edit_text(
-        f"📋 <b>Правила сервиса</b>\n\n{rules_text}",
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
-        ])
+        rules_text,
+        reply_markup=get_back_keyboard(db_user.language)
     )
     await callback.answer()
 
