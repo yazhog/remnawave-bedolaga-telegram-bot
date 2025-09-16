@@ -278,8 +278,7 @@ class UserService:
             
             try:
                 from app.database.models import YooKassaPayment
-                from sqlalchemy import select
-                
+
                 yookassa_result = await db.execute(
                     select(YooKassaPayment).where(YooKassaPayment.user_id == user_id)
                 )
@@ -297,8 +296,7 @@ class UserService:
 
             try:
                 from app.database.models import CryptoBotPayment
-                from sqlalchemy import select, delete
-                
+
                 cryptobot_result = await db.execute(
                     select(CryptoBotPayment).where(CryptoBotPayment.user_id == user_id)
                 )
