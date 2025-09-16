@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, delete as sa_delete, update as sa_update
 
 from app.database.crud.user import (
     get_user_by_id, get_user_by_telegram_id, get_users_list,
@@ -248,10 +248,9 @@ class UserService:
             
             try:
                 from app.database.models import UserMessage
-                from sqlalchemy import update
-                
+
                 result = await db.execute(
-                    update(UserMessage)
+                    sa_update(UserMessage)
                     .where(UserMessage.created_by == user_id)
                     .values(created_by=None)
                 )
@@ -263,10 +262,9 @@ class UserService:
             
             try:
                 from app.database.models import PromoCode
-                from sqlalchemy import update
-                
+
                 result = await db.execute(
-                    update(PromoCode)
+                    sa_update(PromoCode)
                     .where(PromoCode.created_by == user_id)
                     .values(created_by=None)
                 )
@@ -287,7 +285,7 @@ class UserService:
                 if yookassa_payments:
                     logger.info(f"🔄 Удаляем {len(yookassa_payments)} YooKassa платежей")
                     await db.execute(
-                        delete(YooKassaPayment).where(YooKassaPayment.user_id == user_id)
+                        sa_delete(YooKassaPayment).where(YooKassaPayment.user_id == user_id)
                     )
                     await db.flush()
                     logger.info(f"✅ YooKassa платежи удалены")
@@ -305,7 +303,7 @@ class UserService:
                 if cryptobot_payments:
                     logger.info(f"🔄 Удаляем {len(cryptobot_payments)} CryptoBot платежей")
                     await db.execute(
-                        delete(CryptoBotPayment).where(CryptoBotPayment.user_id == user_id)
+                        sa_delete(CryptoBotPayment).where(CryptoBotPayment.user_id == user_id)
                     )
                     await db.flush()
                     logger.info(f"✅ CryptoBot платежи удалены")
@@ -321,7 +319,7 @@ class UserService:
                 if transactions:
                     logger.info(f"🔄 Удаляем {len(transactions)} транзакций")
                     await db.execute(
-                        delete(Transaction).where(Transaction.user_id == user_id)
+                        sa_delete(Transaction).where(Transaction.user_id == user_id)
                     )
                     await db.flush()
                     logger.info(f"✅ Транзакции удалены")
@@ -330,7 +328,7 @@ class UserService:
             
             try:
                 await db.execute(
-                    delete(PromoCodeUse).where(PromoCodeUse.user_id == user_id)
+                    sa_delete(PromoCodeUse).where(PromoCodeUse.user_id == user_id)
                 )
                 await db.flush()
                 logger.info(f"🗑️ Удалены использования промокодов пользователя {user_id}")
@@ -339,7 +337,7 @@ class UserService:
             
             try:
                 await db.execute(
-                    delete(ReferralEarning).where(ReferralEarning.user_id == user_id)
+                    sa_delete(ReferralEarning).where(ReferralEarning.user_id == user_id)
                 )
                 await db.flush()
                 logger.info(f"🗑️ Удалены реферальные доходы пользователя {user_id}")
@@ -348,7 +346,7 @@ class UserService:
             
             try:
                 await db.execute(
-                    delete(ReferralEarning).where(ReferralEarning.referral_id == user_id)
+                    sa_delete(ReferralEarning).where(ReferralEarning.referral_id == user_id)
                 )
                 await db.flush()
                 logger.info(f"🗑️ Удалены реферальные записи о пользователе {user_id}")
@@ -358,7 +356,7 @@ class UserService:
             try:
                 from app.database.models import BroadcastHistory
                 await db.execute(
-                    delete(BroadcastHistory).where(BroadcastHistory.admin_id == user_id)
+                    sa_delete(BroadcastHistory).where(BroadcastHistory.admin_id == user_id)
                 )
                 await db.flush()
                 logger.info(f"🗑️ Удалена история рассылок админа {user_id}")
@@ -375,7 +373,7 @@ class UserService:
                 if conversions:
                     logger.info(f"🔄 Удаляем {len(conversions)} записей конверсий")
                     await db.execute(
-                        delete(SubscriptionConversion).where(SubscriptionConversion.user_id == user_id)
+                        sa_delete(SubscriptionConversion).where(SubscriptionConversion.user_id == user_id)
                     )
                     await db.flush()
                     logger.info(f"✅ Записи конверсий удалены")
@@ -385,7 +383,7 @@ class UserService:
             if user.subscription:
                 try:
                     await db.execute(
-                        delete(SubscriptionServer).where(
+                        sa_delete(SubscriptionServer).where(
                             SubscriptionServer.subscription_id == user.subscription.id
                         )
                     )
@@ -398,7 +396,7 @@ class UserService:
                 try:
                     from app.database.models import Subscription
                     await db.execute(
-                        delete(Subscription).where(Subscription.user_id == user_id)
+                        sa_delete(Subscription).where(Subscription.user_id == user_id)
                     )
                     await db.flush()
                     logger.info(f"🗑️ Удалена подписка пользователя {user_id}")
@@ -406,9 +404,8 @@ class UserService:
                     logger.error(f"❌ Ошибка удаления подписки: {e}")
             
             try:
-                from sqlalchemy import update
                 referrals_result = await db.execute(
-                    update(User)
+                    sa_update(User)
                     .where(User.referred_by_id == user_id)
                     .values(referred_by_id=None)
                 )
@@ -420,7 +417,7 @@ class UserService:
             
             try:
                 await db.execute(
-                    delete(User).where(User.id == user_id)
+                    sa_delete(User).where(User.id == user_id)
                 )
                 await db.commit()
                 logger.info(f"✅ Пользователь {user_id} окончательно удален из базы")
