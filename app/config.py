@@ -155,6 +155,7 @@ class Settings(BaseSettings):
     SKIP_RULES_ACCEPT: bool = False
     SKIP_REFERRAL_CODE: bool = False
 
+    LOCALIZATION_DIR: str = "locales"
     DEFAULT_LANGUAGE: str = "ru"
     AVAILABLE_LANGUAGES: str = "ru,en"
     
