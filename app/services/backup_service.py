@@ -12,6 +12,7 @@ import aiofiles
 from aiogram.types import FSInputFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text, inspect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
@@ -21,7 +22,10 @@ from app.database.models import (
     ReferralEarning, Squad, ServiceRule, SystemSetting, MonitoringLog,
     SubscriptionConversion, SentNotification, BroadcastHistory,
     ServerSquad, SubscriptionServer, UserMessage, YooKassaPayment,
-    CryptoBotPayment, WelcomeText, Base
+    CryptoBotPayment, WelcomeText, Base, PromoGroup, AdvertisingCampaign,
+    AdvertisingCampaignRegistration, SupportAuditLog, Ticket, TicketMessage,
+    MulenPayPayment, Pal24Payment, DiscountOffer, WebApiToken,
+    server_squad_promo_groups
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +34,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BackupMetadata:
     timestamp: str
-    version: str = "1.1" 
+    version: str = "1.2"
     database_type: str = "postgresql"
     backup_type: str = "full"
     tables_count: int = 0
@@ -61,31 +65,42 @@ class BackupService:
         self._settings = self._load_settings()
         
         self.backup_models_ordered = [
-            ServiceRule, 
             SystemSetting,
+            ServiceRule,
             Squad,
-            PromoCode,
             ServerSquad,
-            
-            User, 
-            
-            WelcomeText, 
+            PromoGroup,
+            User,
+            PromoCode,
+            WelcomeText,
+            UserMessage,
             Subscription,
+            SubscriptionServer,
+            SubscriptionConversion,
             Transaction,
             YooKassaPayment,
             CryptoBotPayment,
+            MulenPayPayment,
+            Pal24Payment,
             PromoCodeUse,
             ReferralEarning,
-            SubscriptionConversion,
+            SentNotification,
+            DiscountOffer,
             BroadcastHistory,
-            UserMessage,
-            
-            SentNotification, 
-            SubscriptionServer,  
+            AdvertisingCampaign,
+            AdvertisingCampaignRegistration,
+            Ticket,
+            TicketMessage,
+            SupportAuditLog,
+            WebApiToken,
         ]
-        
+
         if self._settings.include_logs:
             self.backup_models_ordered.append(MonitoringLog)
+
+        self.association_tables = {
+            "server_squad_promo_groups": server_squad_promo_groups,
+        }
 
     def _load_settings(self) -> BackupSettings:
         return BackupSettings(
@@ -164,6 +179,7 @@ class BackupService:
                 models_to_backup.append(MonitoringLog)
             
             backup_data = {}
+            association_data = {}
             total_records = 0
             
             async for db in get_db():
@@ -207,7 +223,11 @@ class BackupService:
                         total_records += len(table_data)
                         
                         logger.info(f"✅ Экспортировано {len(table_data)} записей из {table_name}")
-                    
+
+                    association_data = await self._export_association_tables(db)
+                    for records in association_data.values():
+                        total_records += len(records)
+
                     break
                 except Exception as e:
                     logger.error(f"Ошибка при экспорте данных: {e}")
@@ -219,7 +239,7 @@ class BackupService:
                 timestamp=datetime.utcnow().isoformat(),
                 database_type="postgresql" if settings.is_postgresql() else "sqlite",
                 backup_type="full",
-                tables_count=len(models_to_backup),
+                tables_count=len(models_to_backup) + len(association_data),
                 total_records=total_records,
                 compressed=compress,
                 created_by=created_by,
@@ -232,10 +252,17 @@ class BackupService:
                 filename += ".gz"
             
             backup_path = self.backup_dir / filename
-            
+
+            file_snapshots = await self._collect_file_snapshots()
+
             backup_structure = {
                 "metadata": asdict(metadata),
-                "data": backup_data
+                "data": backup_data,
+                "associations": association_data,
+                "files": file_snapshots,
+                "config": {
+                    "backup_settings": asdict(self._settings)
+                }
             }
             
             if compress:
@@ -264,7 +291,7 @@ class BackupService:
             size_mb = file_size / 1024 / 1024
             message = (f"✅ Бекап успешно создан!\n"
                       f"📁 Файл: {filename}\n"
-                      f"📊 Таблиц: {len(models_to_backup)}\n"
+                      f"📊 Таблиц: {metadata.tables_count}\n"
                       f"📈 Записей: {total_records:,}\n"
                       f"💾 Размер: {size_mb:.2f} MB")
             
@@ -312,6 +339,8 @@ class BackupService:
             
             metadata = backup_structure.get("metadata", {})
             backup_data = backup_structure.get("data", {})
+            association_data = backup_structure.get("associations", {})
+            file_snapshots = backup_structure.get("files", {})
             
             if not backup_data:
                 return False, "❌ Файл бекапа не содержит данных"
@@ -329,60 +358,55 @@ class BackupService:
                         await self._clear_database_tables(db)
                     
                     models_by_table = {model.__tablename__: model for model in self.backup_models_ordered}
-                    
-                    await self._restore_users_without_referrals(db, backup_data, models_by_table)
-                    
-                    for model in self.backup_models_ordered:
-                        table_name = model.__tablename__
-                        
-                        if table_name == "users":
+
+                    pre_restore_tables = {"promo_groups"}
+                    for table_name in pre_restore_tables:
+                        model = models_by_table.get(table_name)
+                        if not model:
                             continue
-                            
+
                         records = backup_data.get(table_name, [])
                         if not records:
                             continue
-                        
+
                         logger.info(f"🔥 Восстанавливаем таблицу {table_name} ({len(records)} записей)")
-                        
-                        for record_data in records:
-                            try:
-                                processed_data = self._process_record_data(record_data, model, table_name)
-                                
-                                primary_key_col = self._get_primary_key_column(model)
-                                
-                                if primary_key_col and primary_key_col in processed_data:
-                                    existing_record = await db.execute(
-                                        select(model).where(
-                                            getattr(model, primary_key_col) == processed_data[primary_key_col]
-                                        )
-                                    )
-                                    existing = existing_record.scalar_one_or_none()
-                                    
-                                    if existing and not clear_existing:
-                                        for key, value in processed_data.items():
-                                            if key != primary_key_col:
-                                                setattr(existing, key, value)
-                                        logger.debug(f"Обновлена существующая запись {primary_key_col}={processed_data[primary_key_col]} в {table_name}")
-                                    else:
-                                        instance = model(**processed_data)
-                                        db.add(instance)
-                                else:
-                                    instance = model(**processed_data)
-                                    db.add(instance)
-                                
-                                restored_records += 1
-                                
-                            except Exception as e:
-                                logger.error(f"Ошибка восстановления записи в {table_name}: {e}")
-                                logger.error(f"Проблемные данные: {record_data}")
-                                await db.rollback()
-                                raise e
-                        
-                        restored_tables += 1
-                        logger.info(f"✅ Таблица {table_name} восстановлена")
-                    
+                        restored = await self._restore_table_records(db, model, table_name, records, clear_existing)
+                        restored_records += restored
+
+                        if restored:
+                            restored_tables += 1
+                            logger.info(f"✅ Таблица {table_name} восстановлена")
+
+                    await self._restore_users_without_referrals(db, backup_data, models_by_table)
+
+                    for model in self.backup_models_ordered:
+                        table_name = model.__tablename__
+
+                        if table_name == "users" or table_name in pre_restore_tables:
+                            continue
+
+                        records = backup_data.get(table_name, [])
+                        if not records:
+                            continue
+
+                        logger.info(f"🔥 Восстанавливаем таблицу {table_name} ({len(records)} записей)")
+                        restored = await self._restore_table_records(db, model, table_name, records, clear_existing)
+                        restored_records += restored
+
+                        if restored:
+                            restored_tables += 1
+                            logger.info(f"✅ Таблица {table_name} восстановлена")
+
                     await self._update_user_referrals(db, backup_data)
-                    
+
+                    assoc_tables, assoc_records = await self._restore_association_tables(
+                        db,
+                        association_data,
+                        clear_existing
+                    )
+                    restored_tables += assoc_tables
+                    restored_records += assoc_records
+
                     await db.commit()
                     
                     break
@@ -403,6 +427,11 @@ class BackupService:
             
             if self.bot:
                 await self._send_backup_notification("restore_success", message)
+
+            if file_snapshots:
+                restored_files = await self._restore_file_snapshots(file_snapshots)
+                if restored_files:
+                    logger.info(f"📁 Восстановлено файлов конфигурации: {restored_files}")
             
             return True, message
             
@@ -549,14 +578,156 @@ class BackupService:
                 return col.name
         return None
 
+    async def _export_association_tables(self, db: AsyncSession) -> Dict[str, List[Dict[str, Any]]]:
+        association_data: Dict[str, List[Dict[str, Any]]] = {}
+
+        for table_name, table_obj in self.association_tables.items():
+            try:
+                logger.info(f"📊 Экспортируем таблицу связей: {table_name}")
+                result = await db.execute(select(table_obj))
+                rows = result.mappings().all()
+                association_data[table_name] = [dict(row) for row in rows]
+                logger.info(
+                    f"✅ Экспортировано {len(rows)} связей из {table_name}"
+                )
+            except Exception as e:
+                logger.error(f"Ошибка экспорта таблицы связей {table_name}: {e}")
+
+        return association_data
+
+    async def _restore_association_tables(
+        self,
+        db: AsyncSession,
+        association_data: Dict[str, List[Dict[str, Any]]],
+        clear_existing: bool
+    ) -> Tuple[int, int]:
+        if not association_data:
+            return 0, 0
+
+        restored_tables = 0
+        restored_records = 0
+
+        if "server_squad_promo_groups" in association_data:
+            restored = await self._restore_server_squad_promo_groups(
+                db,
+                association_data["server_squad_promo_groups"],
+                clear_existing
+            )
+            restored_tables += 1
+            restored_records += restored
+
+        return restored_tables, restored_records
+
+    async def _restore_server_squad_promo_groups(
+        self,
+        db: AsyncSession,
+        records: List[Dict[str, Any]],
+        clear_existing: bool
+    ) -> int:
+        if not records:
+            return 0
+
+        if clear_existing:
+            await db.execute(server_squad_promo_groups.delete())
+
+        restored = 0
+
+        for record in records:
+            server_id = record.get("server_squad_id")
+            promo_id = record.get("promo_group_id")
+
+            if server_id is None or promo_id is None:
+                logger.warning(
+                    "Пропущена некорректная запись server_squad_promo_groups: %s",
+                    record
+                )
+                continue
+
+            try:
+                await db.execute(
+                    server_squad_promo_groups.insert().values(
+                        server_squad_id=server_id,
+                        promo_group_id=promo_id
+                    )
+                )
+                restored += 1
+            except IntegrityError:
+                logger.debug(
+                    "Запись server_squad_promo_groups (%s, %s) уже существует",
+                    server_id,
+                    promo_id
+                )
+            except Exception as e:
+                logger.error(
+                    "Ошибка при восстановлении связи server_squad_promo_groups (%s, %s): %s",
+                    server_id,
+                    promo_id,
+                    e
+                )
+                await db.rollback()
+                raise e
+
+        return restored
+
+    async def _restore_table_records(
+        self,
+        db: AsyncSession,
+        model,
+        table_name: str,
+        records: List[Dict[str, Any]],
+        clear_existing: bool
+    ) -> int:
+        restored_count = 0
+
+        for record_data in records:
+            try:
+                processed_data = self._process_record_data(record_data, model, table_name)
+
+                primary_key_col = self._get_primary_key_column(model)
+
+                if primary_key_col and primary_key_col in processed_data:
+                    existing_record = await db.execute(
+                        select(model).where(
+                            getattr(model, primary_key_col) == processed_data[primary_key_col]
+                        )
+                    )
+                    existing = existing_record.scalar_one_or_none()
+
+                    if existing and not clear_existing:
+                        for key, value in processed_data.items():
+                            if key != primary_key_col:
+                                setattr(existing, key, value)
+                    else:
+                        instance = model(**processed_data)
+                        db.add(instance)
+                else:
+                    instance = model(**processed_data)
+                    db.add(instance)
+
+                restored_count += 1
+
+            except Exception as e:
+                logger.error(f"Ошибка восстановления записи в {table_name}: {e}")
+                logger.error(f"Проблемные данные: {record_data}")
+                await db.rollback()
+                raise e
+
+        return restored_count
+
     async def _clear_database_tables(self, db: AsyncSession):
         tables_order = [
-            "subscription_servers", "sent_notifications", 
-            "user_messages", "broadcast_history", "subscription_conversions", 
-            "referral_earnings", "promocode_uses", "transactions", 
-            "yookassa_payments", "cryptobot_payments", "welcome_texts",
-            "subscriptions", "users", "promocodes", "server_squads", 
-            "squads", "service_rules", "system_settings", "monitoring_logs"
+            "server_squad_promo_groups",
+            "ticket_messages", "tickets", "support_audit_logs",
+            "advertising_campaign_registrations", "advertising_campaigns",
+            "subscription_servers", "sent_notifications",
+            "discount_offers", "user_messages", "broadcast_history", "subscription_conversions",
+            "referral_earnings", "promocode_uses",
+            "yookassa_payments", "cryptobot_payments",
+            "mulenpay_payments", "pal24_payments",
+            "transactions", "welcome_texts", "subscriptions",
+            "promocodes", "users", "promo_groups",
+            "server_squads", "squads", "service_rules",
+            "system_settings", "web_api_tokens", "monitoring_logs"
         ]
         
         for table_name in tables_order:
@@ -565,6 +736,57 @@ class BackupService:
                 logger.info(f"🗑️ Очищена таблица {table_name}")
             except Exception as e:
                 logger.warning(f"⚠️ Не удалось очистить таблицу {table_name}: {e}")
+
+    async def _collect_file_snapshots(self) -> Dict[str, Dict[str, Any]]:
+        snapshots: Dict[str, Dict[str, Any]] = {}
+
+        app_config_path = settings.get_app_config_path()
+        if app_config_path:
+            path_obj = Path(app_config_path)
+            if path_obj.exists() and path_obj.is_file():
+                try:
+                    async with aiofiles.open(path_obj, 'r', encoding='utf-8') as f:
+                        content = await f.read()
+                    snapshots["app_config"] = {
+                        "path": str(path_obj),
+                        "content": content,
+                        "modified_at": datetime.fromtimestamp(
+                            path_obj.stat().st_mtime
+                        ).isoformat()
+                    }
+                    logger.info(
+                        "📁 Добавлен в бекап файл конфигурации: %s",
+                        path_obj
+                    )
+                except Exception as e:
+                    logger.error(
+                        "Ошибка чтения файла конфигурации %s: %s",
+                        path_obj,
+                        e
+                    )
+
+        return snapshots
+
+    async def _restore_file_snapshots(self, file_snapshots: Dict[str, Dict[str, Any]]) -> int:
+        restored_files = 0
+
+        if not file_snapshots:
+            return restored_files
+
+        app_config_snapshot = file_snapshots.get("app_config")
+        if app_config_snapshot:
+            target_path = Path(settings.get_app_config_path())
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                async with aiofiles.open(target_path, 'w', encoding='utf-8') as f:
+                    await f.write(app_config_snapshot.get("content", ""))
+                restored_files += 1
+                logger.info("📁 Файл app-config восстановлен по пути %s", target_path)
+            except Exception as e:
+                logger.error("Ошибка восстановления файла %s: %s", target_path, e)
+
+        return restored_files
 
     async def get_backup_list(self) -> List[Dict[str, Any]]:
         backups = []

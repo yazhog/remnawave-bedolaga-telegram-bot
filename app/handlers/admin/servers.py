@@ -1,3 +1,4 @@
+import html
 import logging
 from aiogram import Dispatcher, types, F
 from aiogram.fsm.context import FSMContext
@@ -6,15 +7,133 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.states import AdminStates
 from app.database.models import User
 from app.database.crud.server_squad import (
-    get_all_server_squads, get_server_squad_by_id, update_server_squad,
-    delete_server_squad, sync_with_remnawave, get_server_statistics,
-    create_server_squad, get_available_server_squads
+    get_all_server_squads,
+    get_server_squad_by_id,
+    update_server_squad,
+    delete_server_squad,
+    sync_with_remnawave,
+    get_server_statistics,
+    create_server_squad,
+    get_available_server_squads,
+    update_server_squad_promo_groups,
+    get_server_connected_users,
 )
+from app.database.crud.promo_group import get_promo_groups_with_counts
 from app.services.remnawave_service import RemnaWaveService
 from app.utils.decorators import admin_required, error_handler
 from app.utils.cache import cache
 
 logger = logging.getLogger(__name__)
+
+
+def _build_server_edit_view(server):
+    status_emoji = "✅ Доступен" if server.is_available else "❌ Недоступен"
+    price_text = f"{int(server.price_rubles)} ₽" if server.price_kopeks > 0 else "Бесплатно"
+    promo_groups_text = (
+        ", ".join(sorted(pg.name for pg in server.allowed_promo_groups))
+        if server.allowed_promo_groups
+        else "Не выбраны"
+    )
+
+    text = f"""
+🌐 <b>Редактирование сервера</b>
+
+<b>Информация:</b>
+• ID: {server.id}
+• UUID: <code>{server.squad_uuid}</code>
+• Название: {server.display_name}
+• Оригинальное: {server.original_name or 'Не указано'}
+• Статус: {status_emoji}
+
+<b>Настройки:</b>
+• Цена: {price_text}
+• Код страны: {server.country_code or 'Не указан'}
+• Лимит пользователей: {server.max_users or 'Без лимита'}
+• Текущих пользователей: {server.current_users}
+• Промогруппы: {promo_groups_text}
+
+<b>Описание:</b>
+{server.description or 'Не указано'}
+
+Выберите что изменить:
+"""
+
+    keyboard = [
+        [
+            types.InlineKeyboardButton(
+                text="✏️ Название", callback_data=f"admin_server_edit_name_{server.id}"
+            ),
+            types.InlineKeyboardButton(
+                text="💰 Цена", callback_data=f"admin_server_edit_price_{server.id}"
+            ),
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="🌍 Страна", callback_data=f"admin_server_edit_country_{server.id}"
+            ),
+            types.InlineKeyboardButton(
+                text="👥 Лимит", callback_data=f"admin_server_edit_limit_{server.id}"
+            ),
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="👥 Юзеры", callback_data=f"admin_server_users_{server.id}"
+            ),
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="🎯 Промогруппы", callback_data=f"admin_server_edit_promo_{server.id}"
+            ),
+            types.InlineKeyboardButton(
+                text="📝 Описание", callback_data=f"admin_server_edit_desc_{server.id}"
+            ),
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="❌ Отключить" if server.is_available else "✅ Включить",
+                callback_data=f"admin_server_toggle_{server.id}",
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="🗑️ Удалить", callback_data=f"admin_server_delete_{server.id}"
+            ),
+            types.InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_servers_list"),
+        ],
+    ]
+
+    return text, types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def _build_server_promo_groups_keyboard(server_id: int, promo_groups, selected_ids):
+    keyboard = []
+    for group in promo_groups:
+        emoji = "✅" if group["id"] in selected_ids else "⚪"
+        keyboard.append(
+            [
+                types.InlineKeyboardButton(
+                    text=f"{emoji} {group['name']}",
+                    callback_data=f"admin_server_promo_toggle_{server_id}_{group['id']}",
+                )
+            ]
+        )
+
+    keyboard.append(
+        [
+            types.InlineKeyboardButton(
+                text="💾 Сохранить", callback_data=f"admin_server_promo_save_{server_id}"
+            )
+        ]
+    )
+    keyboard.append(
+        [
+            types.InlineKeyboardButton(
+                text="⬅️ Назад", callback_data=f"admin_server_edit_{server_id}"
+            )
+        ]
+    )
+
+    return types.InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 @admin_required
@@ -52,7 +171,7 @@ async def show_servers_menu(
             types.InlineKeyboardButton(text="📈 Подробная статистика", callback_data="admin_servers_stats")
         ],
         [
-            types.InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_subscriptions")
+            types.InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_panel")
         ]
     ]
     
@@ -164,9 +283,9 @@ async def sync_servers_with_remnawave(
             )
             return
         
-        created, updated, disabled = await sync_with_remnawave(db, squads)
+        created, updated, removed = await sync_with_remnawave(db, squads)
         
-        await cache.delete("available_countries")
+        await cache.delete_pattern("available_countries*")
         
         text = f"""
 ✅ <b>Синхронизация завершена</b>
@@ -174,7 +293,7 @@ async def sync_servers_with_remnawave(
 📊 <b>Результаты:</b>
 • Создано новых серверов: {created}
 • Обновлено существующих: {updated}
-• Отключено неактивных: {disabled}
+• Удалено отсутствующих: {removed}
 • Всего обработано: {len(squads)}
 
 ℹ️ Новые серверы созданы как недоступные.
@@ -202,7 +321,7 @@ async def sync_servers_with_remnawave(
                 [types.InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_servers")]
             ])
         )
-    
+
     await callback.answer()
 
 
@@ -216,65 +335,161 @@ async def show_server_edit_menu(
     
     server_id = int(callback.data.split('_')[-1])
     server = await get_server_squad_by_id(db, server_id)
-    
+
     if not server:
         await callback.answer("❌ Сервер не найден!", show_alert=True)
         return
-    
-    status_emoji = "✅ Доступен" if server.is_available else "❌ Недоступен"
-    price_text = f"{int(server.price_rubles)} ₽" if server.price_kopeks > 0 else "Бесплатно"
-    
-    text = f"""
-🌐 <b>Редактирование сервера</b>
 
-<b>Информация:</b>
-• ID: {server.id}
-• UUID: <code>{server.squad_uuid}</code>
-• Название: {server.display_name}
-• Оригинальное: {server.original_name or 'Не указано'}
-• Статус: {status_emoji}
+    text, keyboard = _build_server_edit_view(server)
 
-<b>Настройки:</b>
-• Цена: {price_text}
-• Код страны: {server.country_code or 'Не указан'}
-• Лимит пользователей: {server.max_users or 'Без лимита'}
-• Текущих пользователей: {server.current_users}
+    await callback.message.edit_text(
+        text,
+        reply_markup=keyboard,
+        parse_mode="HTML"
+    )
+    await callback.answer()
 
-<b>Описание:</b>
-{server.description or 'Не указано'}
 
-Выберите что изменить:
-"""
-    
-    keyboard = [
-        [
-            types.InlineKeyboardButton(text="✏️ Название", callback_data=f"admin_server_edit_name_{server.id}"),
-            types.InlineKeyboardButton(text="💰 Цена", callback_data=f"admin_server_edit_price_{server.id}")
-        ],
-        [
-            types.InlineKeyboardButton(text="🌍 Страна", callback_data=f"admin_server_edit_country_{server.id}"),
-            types.InlineKeyboardButton(text="👥 Лимит", callback_data=f"admin_server_edit_limit_{server.id}")
-        ],
-        [
-            types.InlineKeyboardButton(text="📝 Описание", callback_data=f"admin_server_edit_desc_{server.id}")
-        ],
-        [
-            types.InlineKeyboardButton(
-                text="❌ Отключить" if server.is_available else "✅ Включить",
-                callback_data=f"admin_server_toggle_{server.id}"
-            )
-        ],
-        [
-            types.InlineKeyboardButton(text="🗑️ Удалить", callback_data=f"admin_server_delete_{server.id}"),
-            types.InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_servers_list")
-        ]
+@admin_required
+@error_handler
+async def show_server_users(
+    callback: types.CallbackQuery,
+    db_user: User,
+    db: AsyncSession
+):
+
+    payload = callback.data.split("admin_server_users_", 1)[-1]
+    payload_parts = payload.split("_")
+
+    server_id = int(payload_parts[0])
+    page = int(payload_parts[1]) if len(payload_parts) > 1 else 1
+    page = max(page, 1)
+    server = await get_server_squad_by_id(db, server_id)
+
+    if not server:
+        await callback.answer("❌ Сервер не найден!", show_alert=True)
+        return
+
+    users = await get_server_connected_users(db, server_id)
+    total_users = len(users)
+
+    page_size = 10
+    total_pages = max((total_users + page_size - 1) // page_size, 1)
+
+    if page > total_pages:
+        page = total_pages
+
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    page_users = users[start_index:end_index]
+
+    safe_name = html.escape(server.display_name or "—")
+    safe_uuid = html.escape(server.squad_uuid or "—")
+
+    header = [
+        "🌐 <b>Пользователи сервера</b>",
+        "",
+        f"• Сервер: {safe_name}",
+        f"• UUID: <code>{safe_uuid}</code>",
+        f"• Подключений: {total_users}",
     ]
-    
+
+    if total_pages > 1:
+        header.append(f"• Страница: {page}/{total_pages}")
+
+    header.append("")
+
+    text = "\n".join(header)
+
+    def _get_status_icon(status_text: str) -> str:
+        if not status_text:
+            return ""
+
+        parts = status_text.split(" ", 1)
+        return parts[0] if parts else status_text
+
+    if users:
+        lines = []
+        for index, user in enumerate(page_users, start=start_index + 1):
+            safe_user_name = html.escape(user.full_name)
+            lines.append(f"{index}. {safe_user_name}")
+
+        text += "\n" + "\n".join(lines)
+    else:
+        text += "Пользователи не найдены."
+
+    keyboard: list[list[types.InlineKeyboardButton]] = []
+
+    for user in page_users:
+        display_name = user.full_name
+        if len(display_name) > 30:
+            display_name = display_name[:27] + "..."
+
+        subscription_status = (
+            user.subscription.status_display
+            if user.subscription
+            else "❌ Нет подписки"
+        )
+        status_icon = _get_status_icon(subscription_status)
+
+        if status_icon:
+            button_text = f"{status_icon} {display_name}"
+        else:
+            button_text = display_name
+
+        keyboard.append([
+            types.InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"admin_user_manage_{user.id}",
+            )
+        ])
+
+    if total_pages > 1:
+        navigation_buttons: list[types.InlineKeyboardButton] = []
+
+        if page > 1:
+            navigation_buttons.append(
+                types.InlineKeyboardButton(
+                    text="⬅️ Предыдущая",
+                    callback_data=f"admin_server_users_{server_id}_{page - 1}",
+                )
+            )
+
+        navigation_buttons.append(
+            types.InlineKeyboardButton(
+                text=f"Стр. {page}/{total_pages}",
+                callback_data=f"admin_server_users_{server_id}_{page}",
+            )
+        )
+
+        if page < total_pages:
+            navigation_buttons.append(
+                types.InlineKeyboardButton(
+                    text="Следующая ➡️",
+                    callback_data=f"admin_server_users_{server_id}_{page + 1}",
+                )
+            )
+
+        keyboard.append(navigation_buttons)
+
+    keyboard.append([
+        types.InlineKeyboardButton(
+            text="⬅️ К серверу", callback_data=f"admin_server_edit_{server_id}"
+        )
+    ])
+
+    keyboard.append([
+        types.InlineKeyboardButton(
+            text="⬅️ К списку", callback_data="admin_servers_list"
+        )
+    ])
+
     await callback.message.edit_text(
         text,
         reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
+
     await callback.answer()
 
 
@@ -296,65 +511,18 @@ async def toggle_server_availability(
     new_status = not server.is_available
     await update_server_squad(db, server_id, is_available=new_status)
     
-    await cache.delete("available_countries")
+    await cache.delete_pattern("available_countries*")
     
     status_text = "включен" if new_status else "отключен"
     await callback.answer(f"✅ Сервер {status_text}!")
     
     server = await get_server_squad_by_id(db, server_id)
     
-    status_emoji = "✅ Доступен" if server.is_available else "❌ Недоступен"
-    price_text = f"{int(server.price_rubles)} ₽" if server.price_kopeks > 0 else "Бесплатно"
-    
-    text = f"""
-🌐 <b>Редактирование сервера</b>
+    text, keyboard = _build_server_edit_view(server)
 
-<b>Информация:</b>
-• ID: {server.id}
-• UUID: <code>{server.squad_uuid}</code>
-• Название: {server.display_name}
-• Оригинальное: {server.original_name or 'Не указано'}
-• Статус: {status_emoji}
-
-<b>Настройки:</b>
-• Цена: {price_text}
-• Код страны: {server.country_code or 'Не указан'}
-• Лимит пользователей: {server.max_users or 'Без лимита'}
-• Текущих пользователей: {server.current_users}
-
-<b>Описание:</b>
-{server.description or 'Не указано'}
-
-Выберите что изменить:
-"""
-    
-    keyboard = [
-        [
-            types.InlineKeyboardButton(text="✏️ Название", callback_data=f"admin_server_edit_name_{server.id}"),
-            types.InlineKeyboardButton(text="💰 Цена", callback_data=f"admin_server_edit_price_{server.id}")
-        ],
-        [
-            types.InlineKeyboardButton(text="🌍 Страна", callback_data=f"admin_server_edit_country_{server.id}"),
-            types.InlineKeyboardButton(text="👥 Лимит", callback_data=f"admin_server_edit_limit_{server.id}")
-        ],
-        [
-            types.InlineKeyboardButton(text="📝 Описание", callback_data=f"admin_server_edit_desc_{server.id}")
-        ],
-        [
-            types.InlineKeyboardButton(
-                text="❌ Отключить" if server.is_available else "✅ Включить",
-                callback_data=f"admin_server_toggle_{server.id}"
-            )
-        ],
-        [
-            types.InlineKeyboardButton(text="🗑️ Удалить", callback_data=f"admin_server_delete_{server.id}"),
-            types.InlineKeyboardButton(text="⬅️ Назад", callback_data="admin_servers_list")
-        ]
-    ]
-    
     await callback.message.edit_text(
         text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=keyboard),
+        reply_markup=keyboard,
         parse_mode="HTML"
     )
 
@@ -422,7 +590,7 @@ async def process_server_price_edit(
         if server:
             await state.clear()
             
-            await cache.delete("available_countries")
+            await cache.delete_pattern("available_countries*")
             
             price_text = f"{int(price_rubles)} ₽" if price_kopeks > 0 else "Бесплатно"
             await message.answer(
@@ -497,7 +665,7 @@ async def process_server_name_edit(
     if server:
         await state.clear()
         
-        await cache.delete("available_countries")
+        await cache.delete_pattern("available_countries*")
         
         await message.answer(
             f"✅ Название сервера изменено на: <b>{new_name}</b>",
@@ -570,7 +738,7 @@ async def delete_server_execute(
     success = await delete_server_squad(db, server_id)
     
     if success:
-        await cache.delete("available_countries")
+        await cache.delete_pattern("available_countries*")
         
         await callback.message.edit_text(
             f"✅ Сервер <b>{server.display_name}</b> успешно удален!",
@@ -701,7 +869,7 @@ async def process_server_country_edit(
     if server:
         await state.clear()
         
-        await cache.delete("available_countries")
+        await cache.delete_pattern("available_countries*")
         
         country_text = new_country or "Удален"
         await message.answer(
@@ -847,11 +1015,12 @@ async def process_server_description_edit(
         return
     
     server = await update_server_squad(db, server_id, description=new_description)
-    
+
     if server:
         await state.clear()
-        
+
         desc_text = new_description or "Удалено"
+        await cache.delete_pattern("available_countries*")
         await message.answer(
             f"✅ Описание сервера изменено:\n\n<i>{desc_text}</i>",
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
@@ -861,6 +1030,147 @@ async def process_server_description_edit(
         )
     else:
         await message.answer("❌ Ошибка при обновлении сервера")
+
+
+@admin_required
+@error_handler
+async def start_server_edit_promo_groups(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    db_user: User,
+    db: AsyncSession,
+):
+
+    server_id = int(callback.data.split('_')[-1])
+    server = await get_server_squad_by_id(db, server_id)
+
+    if not server:
+        await callback.answer("❌ Сервер не найден!", show_alert=True)
+        return
+
+    promo_groups_data = await get_promo_groups_with_counts(db)
+    promo_groups = [
+        {"id": group.id, "name": group.name, "is_default": group.is_default}
+        for group, _ in promo_groups_data
+    ]
+
+    if not promo_groups:
+        await callback.answer("❌ Не найдены промогруппы", show_alert=True)
+        return
+
+    selected_ids = {pg.id for pg in server.allowed_promo_groups}
+    if not selected_ids:
+        default_group = next((pg for pg in promo_groups if pg["is_default"]), None)
+        if default_group:
+            selected_ids.add(default_group["id"])
+
+    await state.set_state(AdminStates.editing_server_promo_groups)
+    await state.set_data(
+        {
+            "server_id": server_id,
+            "promo_groups": promo_groups,
+            "selected_promo_groups": list(selected_ids),
+            "server_name": server.display_name,
+        }
+    )
+
+    text = (
+        "🎯 <b>Настройка промогрупп</b>\n\n"
+        f"Сервер: <b>{server.display_name}</b>\n\n"
+        "Выберите промогруппы, которым будет доступен этот сервер.\n"
+        "Должна быть выбрана минимум одна промогруппа."
+    )
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=_build_server_promo_groups_keyboard(server_id, promo_groups, selected_ids),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@admin_required
+@error_handler
+async def toggle_server_promo_group(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    db_user: User,
+    db: AsyncSession,
+):
+
+    parts = callback.data.split('_')
+    server_id = int(parts[4])
+    group_id = int(parts[5])
+
+    data = await state.get_data()
+    if not data or data.get("server_id") != server_id:
+        await callback.answer("⚠️ Сессия редактирования устарела", show_alert=True)
+        return
+
+    selected = set(int(pg_id) for pg_id in data.get("selected_promo_groups", []))
+    promo_groups = data.get("promo_groups", [])
+
+    if group_id in selected:
+        if len(selected) == 1:
+            await callback.answer("⚠️ Нельзя отключить последнюю промогруппу", show_alert=True)
+            return
+        selected.remove(group_id)
+        message = "Промогруппа отключена"
+    else:
+        selected.add(group_id)
+        message = "Промогруппа добавлена"
+
+    await state.update_data(selected_promo_groups=list(selected))
+
+    await callback.message.edit_reply_markup(
+        reply_markup=_build_server_promo_groups_keyboard(server_id, promo_groups, selected)
+    )
+    await callback.answer(message)
+
+
+@admin_required
+@error_handler
+async def save_server_promo_groups(
+    callback: types.CallbackQuery,
+    state: FSMContext,
+    db_user: User,
+    db: AsyncSession,
+):
+
+    data = await state.get_data()
+    if not data:
+        await callback.answer("⚠️ Нет данных для сохранения", show_alert=True)
+        return
+
+    server_id = data.get("server_id")
+    selected = data.get("selected_promo_groups", [])
+
+    if not selected:
+        await callback.answer("❌ Выберите хотя бы одну промогруппу", show_alert=True)
+        return
+
+    try:
+        server = await update_server_squad_promo_groups(db, server_id, selected)
+    except ValueError as exc:
+        await callback.answer(f"❌ {exc}", show_alert=True)
+        return
+
+    if not server:
+        await callback.answer("❌ Сервер не найден", show_alert=True)
+        return
+
+    await cache.delete_pattern("available_countries*")
+    await state.clear()
+
+    text, keyboard = _build_server_edit_view(server)
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
+    await callback.answer("✅ Промогруппы обновлены!")
+
 
 @admin_required
 @error_handler
@@ -934,12 +1244,23 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(sync_server_user_counts_handler, F.data == "admin_servers_sync_counts")
     dp.callback_query.register(show_server_detailed_stats, F.data == "admin_servers_stats")
     
-    dp.callback_query.register(show_server_edit_menu, F.data.startswith("admin_server_edit_") & ~F.data.contains("name") & ~F.data.contains("price") & ~F.data.contains("country") & ~F.data.contains("limit") & ~F.data.contains("desc"))
+    dp.callback_query.register(
+        show_server_edit_menu,
+        F.data.startswith("admin_server_edit_")
+        & ~F.data.contains("name")
+        & ~F.data.contains("price")
+        & ~F.data.contains("country")
+        & ~F.data.contains("limit")
+        & ~F.data.contains("desc")
+        & ~F.data.contains("promo"),
+    )
     dp.callback_query.register(toggle_server_availability, F.data.startswith("admin_server_toggle_"))
-    
+    dp.callback_query.register(show_server_users, F.data.startswith("admin_server_users_"))
+
     dp.callback_query.register(start_server_edit_name, F.data.startswith("admin_server_edit_name_"))
     dp.callback_query.register(start_server_edit_price, F.data.startswith("admin_server_edit_price_"))
-    dp.callback_query.register(start_server_edit_country, F.data.startswith("admin_server_edit_country_"))      
+    dp.callback_query.register(start_server_edit_country, F.data.startswith("admin_server_edit_country_"))
+    dp.callback_query.register(start_server_edit_promo_groups, F.data.startswith("admin_server_edit_promo_"))
     dp.callback_query.register(start_server_edit_limit, F.data.startswith("admin_server_edit_limit_"))         
     dp.callback_query.register(start_server_edit_description, F.data.startswith("admin_server_edit_desc_"))     
     
@@ -947,7 +1268,9 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(process_server_price_edit, AdminStates.editing_server_price)
     dp.message.register(process_server_country_edit, AdminStates.editing_server_country)            
     dp.message.register(process_server_limit_edit, AdminStates.editing_server_limit)                
-    dp.message.register(process_server_description_edit, AdminStates.editing_server_description)    
+    dp.message.register(process_server_description_edit, AdminStates.editing_server_description)
+    dp.callback_query.register(toggle_server_promo_group, F.data.startswith("admin_server_promo_toggle_"))
+    dp.callback_query.register(save_server_promo_groups, F.data.startswith("admin_server_promo_save_"))
     
     dp.callback_query.register(delete_server_confirm, F.data.startswith("admin_server_delete_") & ~F.data.contains("confirm"))
     dp.callback_query.register(delete_server_execute, F.data.startswith("admin_server_delete_confirm_"))

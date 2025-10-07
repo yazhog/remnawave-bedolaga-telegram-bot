@@ -1,12 +1,31 @@
 import logging
-from typing import List, Optional, Tuple
-from sqlalchemy import select, and_, func, update, delete, text
+from datetime import datetime
+from typing import Iterable, List, Optional, Sequence, Tuple
+
+from sqlalchemy import (
+    select,
+    and_,
+    func,
+    update,
+    delete,
+    text,
+    or_,
+    cast,
+    String,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database.models import ServerSquad, SubscriptionServer, Subscription
+from app.database.models import PromoGroup, ServerSquad, SubscriptionServer, Subscription, User
 
 logger = logging.getLogger(__name__)
+
+
+async def _get_default_promo_group_id(db: AsyncSession) -> Optional[int]:
+    result = await db.execute(
+        select(PromoGroup.id).where(PromoGroup.is_default.is_(True)).limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def create_server_squad(
@@ -18,9 +37,30 @@ async def create_server_squad(
     price_kopeks: int = 0,
     description: str = None,
     max_users: int = None,
-    is_available: bool = True
+    is_available: bool = True,
+    promo_group_ids: Optional[Iterable[int]] = None,
 ) -> ServerSquad:
-    
+
+    normalized_group_ids: Sequence[int]
+    if promo_group_ids is None:
+        default_id = await _get_default_promo_group_id(db)
+        normalized_group_ids = [default_id] if default_id is not None else []
+    else:
+        normalized_group_ids = [int(pg_id) for pg_id in set(promo_group_ids)]
+
+    if not normalized_group_ids:
+        raise ValueError("Server squad must be linked to at least one promo group")
+
+    promo_groups_result = await db.execute(
+        select(PromoGroup).where(PromoGroup.id.in_(normalized_group_ids))
+    )
+    promo_groups = promo_groups_result.scalars().all()
+
+    if len(promo_groups) != len(normalized_group_ids):
+        logger.warning(
+            "Не все промогруппы найдены при создании сервера %s", display_name
+        )
+
     server_squad = ServerSquad(
         squad_uuid=squad_uuid,
         display_name=display_name,
@@ -29,9 +69,10 @@ async def create_server_squad(
         price_kopeks=price_kopeks,
         description=description,
         max_users=max_users,
-        is_available=is_available
+        is_available=is_available,
+        allowed_promo_groups=promo_groups,
     )
-    
+
     db.add(server_squad)
     await db.commit()
     await db.refresh(server_squad)
@@ -46,9 +87,11 @@ async def get_server_squad_by_uuid(
 ) -> Optional[ServerSquad]:
     
     result = await db.execute(
-        select(ServerSquad).where(ServerSquad.squad_uuid == squad_uuid)
+        select(ServerSquad)
+        .options(selectinload(ServerSquad.allowed_promo_groups))
+        .where(ServerSquad.squad_uuid == squad_uuid)
     )
-    return result.scalar_one_or_none()
+    return result.scalars().unique().one_or_none()
 
 
 async def get_server_squad_by_id(
@@ -57,9 +100,11 @@ async def get_server_squad_by_id(
 ) -> Optional[ServerSquad]:
     
     result = await db.execute(
-        select(ServerSquad).where(ServerSquad.id == server_id)
+        select(ServerSquad)
+        .options(selectinload(ServerSquad.allowed_promo_groups))
+        .where(ServerSquad.id == server_id)
     )
-    return result.scalar_one_or_none()
+    return result.scalars().unique().one_or_none()
 
 
 async def get_all_server_squads(
@@ -91,14 +136,59 @@ async def get_all_server_squads(
     return servers, total_count
 
 
-async def get_available_server_squads(db: AsyncSession) -> List[ServerSquad]:
-    
-    result = await db.execute(
+async def get_available_server_squads(
+    db: AsyncSession,
+    promo_group_id: Optional[int] = None,
+) -> List[ServerSquad]:
+
+    query = (
         select(ServerSquad)
-        .where(ServerSquad.is_available == True)
+        .options(selectinload(ServerSquad.allowed_promo_groups))
+        .where(ServerSquad.is_available.is_(True))
         .order_by(ServerSquad.sort_order, ServerSquad.display_name)
     )
-    return result.scalars().all()
+
+    if promo_group_id is not None:
+        query = query.join(ServerSquad.allowed_promo_groups).where(
+            PromoGroup.id == promo_group_id
+        )
+
+    result = await db.execute(query)
+    return result.scalars().unique().all()
+
+
+async def update_server_squad_promo_groups(
+    db: AsyncSession, server_id: int, promo_group_ids: Iterable[int]
+) -> Optional[ServerSquad]:
+    unique_ids = [int(pg_id) for pg_id in set(promo_group_ids)]
+
+    if not unique_ids:
+        raise ValueError("Нужно выбрать хотя бы одну промогруппу")
+
+    server = await get_server_squad_by_id(db, server_id)
+    if not server:
+        return None
+
+    result = await db.execute(
+        select(PromoGroup).where(PromoGroup.id.in_(unique_ids))
+    )
+    promo_groups = result.scalars().all()
+
+    if not promo_groups:
+        raise ValueError("Не найдены промогруппы для обновления сервера")
+
+    server.allowed_promo_groups = promo_groups
+    await db.commit()
+    await db.refresh(server)
+
+    logger.info(
+        "Обновлены промогруппы сервера %s (ID: %s): %s",
+        server.display_name,
+        server.id,
+        ", ".join(pg.name for pg in promo_groups),
+    )
+
+    return server
 
 
 async def update_server_squad(
@@ -153,10 +243,10 @@ async def sync_with_remnawave(
     db: AsyncSession,
     remnawave_squads: List[dict]
 ) -> Tuple[int, int, int]:
-    
+
     created = 0
     updated = 0
-    disabled = 0
+    removed = 0
     
     existing_servers = {}
     result = await db.execute(select(ServerSquad))
@@ -186,15 +276,121 @@ async def sync_with_remnawave(
             )
             created += 1
     
-    for uuid, server in existing_servers.items():
-        if uuid not in remnawave_uuids and server.is_available:
-            server.is_available = False
-            disabled += 1
-    
+    removed_servers = [
+        server for uuid, server in existing_servers.items()
+        if uuid not in remnawave_uuids
+    ]
+
+    if removed_servers:
+        removed_ids = [server.id for server in removed_servers]
+        removed_uuids = {server.squad_uuid for server in removed_servers}
+
+        subscription_ids_result = await db.execute(
+            select(SubscriptionServer.subscription_id)
+            .where(SubscriptionServer.server_squad_id.in_(removed_ids))
+        )
+        subscription_ids = {row[0] for row in subscription_ids_result.fetchall()}
+
+        for server in removed_servers:
+            logger.info(
+                "🗑️ Удаляется сервер %s (UUID: %s)",
+                server.display_name,
+                server.squad_uuid,
+            )
+
+        await db.execute(
+            delete(SubscriptionServer).where(SubscriptionServer.server_squad_id.in_(removed_ids))
+        )
+
+        subscriptions_to_update: dict[int, Subscription] = {}
+
+        if subscription_ids:
+            subscriptions_result = await db.execute(
+                select(Subscription).where(Subscription.id.in_(subscription_ids))
+            )
+            for subscription in subscriptions_result.scalars().unique().all():
+                subscriptions_to_update[subscription.id] = subscription
+
+        for squad_uuid in removed_uuids:
+            if not squad_uuid:
+                continue
+
+            extra_result = await db.execute(
+                select(Subscription).where(
+                    text("connected_squads::text LIKE :uuid_pattern")
+                ),
+                {"uuid_pattern": f'%"{squad_uuid}"%'}
+            )
+
+            for subscription in extra_result.scalars().unique().all():
+                subscriptions_to_update[subscription.id] = subscription
+
+        cleaned_subscriptions = 0
+
+        for subscription in subscriptions_to_update.values():
+            current_squads = list(subscription.connected_squads or [])
+            if not current_squads:
+                continue
+
+            filtered_squads = [
+                squad_uuid for squad_uuid in current_squads if squad_uuid not in removed_uuids
+            ]
+
+            if len(filtered_squads) != len(current_squads):
+                subscription.connected_squads = filtered_squads
+                subscription.updated_at = datetime.utcnow()
+                cleaned_subscriptions += 1
+
+        await db.execute(delete(ServerSquad).where(ServerSquad.id.in_(removed_ids)))
+        removed = len(removed_servers)
+
+        if cleaned_subscriptions:
+            logger.info(
+                "🧹 Обновлены подписки после удаления серверов: %s",
+                cleaned_subscriptions,
+            )
+
     await db.commit()
-    
-    logger.info(f"🔄 Синхронизация завершена: +{created} ~{updated} -{disabled}")
-    return created, updated, disabled
+
+    logger.info(f"🔄 Синхронизация завершена: +{created} ~{updated} -{removed}")
+    return created, updated, removed
+
+
+async def get_server_connected_users(
+    db: AsyncSession,
+    server_id: int
+) -> List[User]:
+
+    server_uuid_result = await db.execute(
+        select(ServerSquad.squad_uuid).where(ServerSquad.id == server_id)
+    )
+    server_uuid = server_uuid_result.scalar_one_or_none()
+
+    connection_filters = [SubscriptionServer.id.isnot(None)]
+
+    if server_uuid:
+        connection_filters.append(
+            cast(Subscription.connected_squads, String).like(
+                f'%"{server_uuid}"%'
+            )
+        )
+
+    result = await db.execute(
+        select(User)
+        .join(Subscription, Subscription.user_id == User.id)
+        .outerjoin(
+            SubscriptionServer,
+            and_(
+                SubscriptionServer.subscription_id == Subscription.id,
+                SubscriptionServer.server_squad_id == server_id,
+            ),
+        )
+        .where(or_(*connection_filters))
+        .options(selectinload(User.subscription))
+        .order_by(User.id)
+    )
+
+    return result.scalars().unique().all()
 
 
 def _generate_display_name(original_name: str) -> str:

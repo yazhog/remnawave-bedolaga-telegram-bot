@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.models import Subscription, User, SubscriptionStatus, PromoGroup
 from app.external.remnawave_api import (
-    RemnaWaveAPI, RemnaWaveUser, UserStatus, 
+    RemnaWaveAPI, RemnaWaveUser, UserStatus,
     TrafficLimitStrategy, RemnaWaveAPIError
 )
 from app.database.crud.user import get_user_by_id
@@ -38,6 +39,26 @@ def _resolve_discount_percent(
 
     return 0
 
+
+def _resolve_addon_discount_percent(
+    user: Optional[User],
+    promo_group: Optional[PromoGroup],
+    category: str,
+    *,
+    period_days: Optional[int] = None,
+) -> int:
+    group = promo_group or (getattr(user, "promo_group", None) if user else None)
+
+    if group is not None and not getattr(group, "apply_discounts_to_addons", True):
+        return 0
+
+    return _resolve_discount_percent(
+        user,
+        promo_group,
+        category,
+        period_days=period_days,
+    )
+
 def get_traffic_reset_strategy():
     from app.config import settings
     strategy = settings.DEFAULT_TRAFFIC_RESET_STRATEGY.upper()
@@ -55,21 +76,88 @@ def get_traffic_reset_strategy():
 
 
 class SubscriptionService:
-    
+
     def __init__(self):
+        self._config_error: Optional[str] = None
+        self.api: Optional[RemnaWaveAPI] = None
+        self._last_config_signature: Optional[Tuple[str, ...]] = None
+
+        self._refresh_configuration()
+
+    def _refresh_configuration(self) -> None:
         auth_params = settings.get_remnawave_auth_params()
-        self.api = RemnaWaveAPI(
-            base_url=auth_params["base_url"],
-            api_key=auth_params["api_key"],
-            secret_key=auth_params["secret_key"],
-            username=auth_params["username"],
-            password=auth_params["password"]
+        base_url = (auth_params.get("base_url") or "").strip()
+        api_key = (auth_params.get("api_key") or "").strip()
+        secret_key = (auth_params.get("secret_key") or "").strip() or None
+        username = (auth_params.get("username") or "").strip() or None
+        password = (auth_params.get("password") or "").strip() or None
+        auth_type = (auth_params.get("auth_type") or "").strip() or None
+
+        config_signature = (
+            base_url,
+            api_key,
+            secret_key or "",
+            username or "",
+            password or "",
+            auth_type or "",
         )
+
+        if config_signature == self._last_config_signature:
+            return
+
+        if not base_url:
+            self._config_error = "REMNAWAVE_API_URL не настроен"
+            self.api = None
+        elif not api_key:
+            self._config_error = "REMNAWAVE_API_KEY не настроен"
+            self.api = None
+        else:
+            self._config_error = None
+            self.api = RemnaWaveAPI(
+                base_url=base_url,
+                api_key=api_key,
+                secret_key=secret_key,
+                username=username,
+                password=password,
+            )
+
+        if self._config_error:
+            logger.warning(
+                "RemnaWave API недоступен: %s. Подписочный сервис будет работать в оффлайн-режиме.",
+                self._config_error
+            )
+
+        self._last_config_signature = config_signature
+
+    @property
+    def is_configured(self) -> bool:
+        return self._config_error is None
+
+    @property
+    def configuration_error(self) -> Optional[str]:
+        return self._config_error
+
+    def _ensure_configured(self) -> None:
+        self._refresh_configuration()
+        if not self.api or not self.is_configured:
+            raise RemnaWaveAPIError(
+                self._config_error or "RemnaWave API не настроен"
+            )
+
+    @asynccontextmanager
+    async def get_api_client(self):
+        self._ensure_configured()
+        assert self.api is not None
+        async with self.api as api:
+            yield api
     
     async def create_remnawave_user(
-        self, 
-        db: AsyncSession, 
-        subscription: Subscription
+        self,
+        db: AsyncSession,
+        subscription: Subscription,
+        *,
+        reset_traffic: bool = False,
+        reset_reason: Optional[str] = None,
     ) -> Optional[RemnaWaveUser]:
         
         try:
@@ -83,7 +171,7 @@ class SubscriptionService:
                 logger.error(f"Ошибка валидации подписки для пользователя {user.telegram_id}")
                 return None
             
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 existing_users = await api.get_user_by_telegram_id(user.telegram_id)
                 if existing_users:
                     logger.info(f"🔄 Найден существующий пользователь в панели для {user.telegram_id}")
@@ -110,6 +198,14 @@ class SubscriptionService:
                         active_internal_squads=subscription.connected_squads
                     )
                     
+                    if reset_traffic:
+                        await self._reset_user_traffic(
+                            api,
+                            updated_user.uuid,
+                            user.telegram_id,
+                            reset_reason,
+                        )
+
                 else:
                     logger.info(f"🆕 Создаем нового пользователя в панели для {user.telegram_id}")
                     username = f"user_{user.telegram_id}"
@@ -128,9 +224,18 @@ class SubscriptionService:
                         ),
                         active_internal_squads=subscription.connected_squads
                     )
-                
+
+                    if reset_traffic:
+                        await self._reset_user_traffic(
+                            api,
+                            updated_user.uuid,
+                            user.telegram_id,
+                            reset_reason,
+                        )
+
                 subscription.remnawave_short_uuid = updated_user.short_uuid
-                subscription.subscription_url = updated_user.subscription_url 
+                subscription.subscription_url = updated_user.subscription_url
+                subscription.subscription_crypto_link = updated_user.happ_crypto_link
                 user.remnawave_uuid = updated_user.uuid
                 
                 await db.commit()
@@ -151,7 +256,10 @@ class SubscriptionService:
     async def update_remnawave_user(
         self,
         db: AsyncSession,
-        subscription: Subscription
+        subscription: Subscription,
+        *,
+        reset_traffic: bool = False,
+        reset_reason: Optional[str] = None,
     ) -> Optional[RemnaWaveUser]:
         
         try:
@@ -173,7 +281,7 @@ class SubscriptionService:
                 is_actually_active = False
                 logger.info(f"🔔 Статус подписки {subscription.id} автоматически изменен на 'expired'")
             
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 updated_user = await api.update_user(
                     uuid=user.remnawave_uuid,
                     status=UserStatus.ACTIVE if is_actually_active else UserStatus.EXPIRED,
@@ -189,7 +297,16 @@ class SubscriptionService:
                     active_internal_squads=subscription.connected_squads
                 )
                 
+                if reset_traffic:
+                    await self._reset_user_traffic(
+                        api,
+                        user.remnawave_uuid,
+                        user.telegram_id,
+                        reset_reason,
+                    )
+
                 subscription.subscription_url = updated_user.subscription_url
+                subscription.subscription_crypto_link = updated_user.happ_crypto_link
                 await db.commit()
                 
                 status_text = "активным" if is_actually_active else "истёкшим"
@@ -197,18 +314,39 @@ class SubscriptionService:
                 strategy_name = settings.DEFAULT_TRAFFIC_RESET_STRATEGY
                 logger.info(f"📊 Стратегия сброса трафика: {strategy_name}")
                 return updated_user
-                
+
         except RemnaWaveAPIError as e:
             logger.error(f"Ошибка RemnaWave API: {e}")
             return None
         except Exception as e:
             logger.error(f"Ошибка обновления RemnaWave пользователя: {e}")
             return None
-    
-    async def disable_remnawave_user(self, user_uuid: str) -> bool:
-        
+
+    async def _reset_user_traffic(
+        self,
+        api: RemnaWaveAPI,
+        user_uuid: str,
+        telegram_id: int,
+        reset_reason: Optional[str] = None,
+    ) -> None:
+        if not user_uuid:
+            return
+
         try:
-            async with self.api as api:
+            await api.reset_user_traffic(user_uuid)
+            reason_text = f" ({reset_reason})" if reset_reason else ""
+            logger.info(
+                f"🔄 Сброшен трафик RemnaWave для пользователя {telegram_id}{reason_text}"
+            )
+        except Exception as exc:
+            logger.warning(
+                f"⚠️ Не удалось сбросить трафик RemnaWave для пользователя {telegram_id}: {exc}"
+            )
+
+    async def disable_remnawave_user(self, user_uuid: str) -> bool:
+
+        try:
+            async with self.get_api_client() as api:
                 await api.disable_user(user_uuid)
                 logger.info(f"✅ Отключен RemnaWave пользователь {user_uuid}")
                 return True
@@ -228,11 +366,12 @@ class SubscriptionService:
             if not user or not user.remnawave_uuid:
                 return None
             
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 updated_user = await api.revoke_user_subscription(user.remnawave_uuid)
                 
                 subscription.remnawave_short_uuid = updated_user.short_uuid
                 subscription.subscription_url = updated_user.subscription_url
+                subscription.subscription_crypto_link = updated_user.happ_crypto_link
                 await db.commit()
                 
                 logger.info(f"✅ Обновлена ссылка подписки для пользователя {user.telegram_id}")
@@ -245,7 +384,7 @@ class SubscriptionService:
     async def get_subscription_info(self, short_uuid: str) -> Optional[dict]:
         
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 info = await api.get_subscription_info(short_uuid)
                 return info
                 
@@ -264,7 +403,7 @@ class SubscriptionService:
             if not user or not user.remnawave_uuid:
                 return False
             
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 remnawave_user = await api.get_user_by_uuid(user.remnawave_uuid)
                 if not remnawave_user:
                     return False
@@ -299,7 +438,15 @@ class SubscriptionService:
         if settings.MAX_DEVICES_LIMIT > 0 and devices > settings.MAX_DEVICES_LIMIT:
             raise ValueError(f"Превышен максимальный лимит устройств: {settings.MAX_DEVICES_LIMIT}")
     
-        base_price = PERIOD_PRICES.get(period_days, 0)
+        base_price_original = PERIOD_PRICES.get(period_days, 0)
+        period_discount_percent = _resolve_discount_percent(
+            user,
+            promo_group,
+            "period",
+            period_days=period_days,
+        )
+        base_discount_total = base_price_original * period_discount_percent // 100
+        base_price = base_price_original - base_discount_total
         
         promo_group = promo_group or (user.promo_group if user else None)
 
@@ -353,7 +500,13 @@ class SubscriptionService:
         total_price = base_price + discounted_traffic_price + total_servers_price + discounted_devices_price
 
         logger.info(f"Расчет стоимости новой подписки:")
-        logger.info(f"   Период {period_days} дней: {base_price/100}₽")
+        base_log = f"   Период {period_days} дней: {base_price_original/100}₽"
+        if base_discount_total > 0:
+            base_log += (
+                f" → {base_price/100}₽"
+                f" (скидка {period_discount_percent}%: -{base_discount_total/100}₽)"
+            )
+        logger.info(base_log)
         if discounted_traffic_price > 0:
             message = f"   Трафик {traffic_gb} ГБ: {traffic_price/100}₽"
             if traffic_discount > 0:
@@ -391,14 +544,16 @@ class SubscriptionService:
         try:
             from app.config import PERIOD_PRICES
 
-            base_price = PERIOD_PRICES.get(period_days, 0)
+            base_price_original = PERIOD_PRICES.get(period_days, 0)
 
             if user is None:
                 user = getattr(subscription, "user", None)
             promo_group = promo_group or (user.promo_group if user else None)
 
             servers_price, _ = await self.get_countries_price_by_uuids(
-                subscription.connected_squads, db
+                subscription.connected_squads,
+                db,
+                promo_group_id=promo_group.id if promo_group else None,
             )
 
             servers_discount_percent = _resolve_discount_percent(
@@ -430,6 +585,15 @@ class SubscriptionService:
             traffic_discount = traffic_price * traffic_discount_percent // 100
             discounted_traffic_price = traffic_price - traffic_discount
 
+            period_discount_percent = _resolve_discount_percent(
+                user,
+                promo_group,
+                "period",
+                period_days=period_days,
+            )
+            base_discount_total = base_price_original * period_discount_percent // 100
+            base_price = base_price_original - base_discount_total
+
             total_price = (
                 base_price
                 + discounted_servers_price
@@ -438,7 +602,13 @@ class SubscriptionService:
             )
 
             logger.info(f"💰 Расчет стоимости продления для подписки {subscription.id} (по текущим ценам):")
-            logger.info(f"   📅 Период {period_days} дней: {base_price/100}₽")
+            base_log = f"   📅 Период {period_days} дней: {base_price_original/100}₽"
+            if base_discount_total > 0:
+                base_log += (
+                    f" → {base_price/100}₽"
+                    f" (скидка {period_discount_percent}%: -{base_discount_total/100}₽)"
+                )
+            logger.info(base_log)
             if servers_price > 0:
                 message = f"   🌍 Серверы ({len(subscription.connected_squads)}) по текущим ценам: {discounted_servers_price/100}₽"
                 if servers_discount > 0:
@@ -480,7 +650,7 @@ class SubscriptionService:
             
             if user.remnawave_uuid:
                 try:
-                    async with self.api as api:
+                    async with self.get_api_client() as api:
                         remnawave_user = await api.get_user_by_uuid(user.remnawave_uuid)
                         
                         if not remnawave_user:
@@ -503,6 +673,7 @@ class SubscriptionService:
                 
                 subscription.remnawave_short_uuid = None
                 subscription.subscription_url = ""
+                subscription.subscription_crypto_link = ""
                 subscription.connected_squads = []
                 
                 user.remnawave_uuid = None
@@ -518,9 +689,11 @@ class SubscriptionService:
             return False
     
     async def get_countries_price_by_uuids(
-        self, 
-        country_uuids: List[str], 
-        db: AsyncSession
+        self,
+        country_uuids: List[str],
+        db: AsyncSession,
+        *,
+        promo_group_id: Optional[int] = None,
     ) -> Tuple[int, List[int]]:
         try:
             from app.database.crud.server_squad import get_server_squad_by_uuid
@@ -530,7 +703,12 @@ class SubscriptionService:
             
             for country_uuid in country_uuids:
                 server = await get_server_squad_by_uuid(db, country_uuid)
-                if server and server.is_available and not server.is_full:
+                is_allowed = True
+                if promo_group_id is not None and server:
+                    allowed_ids = {pg.id for pg in server.allowed_promo_groups}
+                    is_allowed = promo_group_id in allowed_ids
+
+                if server and server.is_available and not server.is_full and is_allowed:
                     price = server.price_kopeks
                     total_price += price
                     prices_list.append(price)
@@ -577,7 +755,15 @@ class SubscriptionService:
         
         months_in_period = calculate_months_from_days(period_days)
         
-        base_price = PERIOD_PRICES.get(period_days, 0)
+        base_price_original = PERIOD_PRICES.get(period_days, 0)
+        period_discount_percent = _resolve_discount_percent(
+            user,
+            promo_group,
+            "period",
+            period_days=period_days,
+        )
+        base_discount_total = base_price_original * period_discount_percent // 100
+        base_price = base_price_original - base_discount_total
         
         promo_group = promo_group or (user.promo_group if user else None)
 
@@ -637,7 +823,13 @@ class SubscriptionService:
         total_price = base_price + total_traffic_price + total_servers_price + total_devices_price
 
         logger.info(f"Расчет стоимости новой подписки на {period_days} дней ({months_in_period} мес):")
-        logger.info(f"   Период {period_days} дней: {base_price/100}₽")
+        base_log = f"   Период {period_days} дней: {base_price_original/100}₽"
+        if base_discount_total > 0:
+            base_log += (
+                f" → {base_price/100}₽"
+                f" (скидка {period_discount_percent}%: -{base_discount_total/100}₽)"
+            )
+        logger.info(base_log)
         if total_traffic_price > 0:
             message = (
                 f"   Трафик {traffic_gb} ГБ: {traffic_price_per_month/100}₽/мес x {months_in_period} = {total_traffic_price/100}₽"
@@ -681,14 +873,16 @@ class SubscriptionService:
 
             months_in_period = calculate_months_from_days(period_days)
 
-            base_price = PERIOD_PRICES.get(period_days, 0)
+            base_price_original = PERIOD_PRICES.get(period_days, 0)
 
             if user is None:
                 user = getattr(subscription, "user", None)
             promo_group = promo_group or (user.promo_group if user else None)
 
             servers_price_per_month, _ = await self.get_countries_price_by_uuids(
-                subscription.connected_squads, db
+                subscription.connected_squads,
+                db,
+                promo_group_id=promo_group.id if promo_group else None,
             )
             servers_discount_percent = _resolve_discount_percent(
                 user,
@@ -723,10 +917,25 @@ class SubscriptionService:
             discounted_traffic_per_month = traffic_price_per_month - traffic_discount_per_month
             total_traffic_price = discounted_traffic_per_month * months_in_period
 
+            period_discount_percent = _resolve_discount_percent(
+                user,
+                promo_group,
+                "period",
+                period_days=period_days,
+            )
+            base_discount_total = base_price_original * period_discount_percent // 100
+            base_price = base_price_original - base_discount_total
+
             total_price = base_price + total_servers_price + total_devices_price + total_traffic_price
 
             logger.info(f"💰 Расчет стоимости продления подписки {subscription.id} на {period_days} дней ({months_in_period} мес):")
-            logger.info(f"   📅 Период {period_days} дней: {base_price/100}₽")
+            base_log = f"   📅 Период {period_days} дней: {base_price_original/100}₽"
+            if base_discount_total > 0:
+                base_log += (
+                    f" → {base_price/100}₽"
+                    f" (скидка {period_discount_percent}%: -{base_discount_total/100}₽)"
+                )
+            logger.info(base_log)
             if total_servers_price > 0:
                 message = (
                     f"   🌍 Серверы: {servers_price_per_month/100}₽/мес x {months_in_period} = {total_servers_price/100}₽"
@@ -785,7 +994,7 @@ class SubscriptionService:
 
         if additional_traffic_gb > 0:
             traffic_price_per_month = settings.get_traffic_price(additional_traffic_gb)
-            traffic_discount_percent = _resolve_discount_percent(
+            traffic_discount_percent = _resolve_addon_discount_percent(
                 user,
                 promo_group,
                 "traffic",
@@ -808,7 +1017,7 @@ class SubscriptionService:
 
         if additional_devices > 0:
             devices_price_per_month = additional_devices * settings.PRICE_PER_DEVICE
-            devices_discount_percent = _resolve_discount_percent(
+            devices_discount_percent = _resolve_addon_discount_percent(
                 user,
                 promo_group,
                 "devices",
@@ -835,7 +1044,7 @@ class SubscriptionService:
                 server = await get_server_squad_by_id(db, server_id)
                 if server and server.is_available:
                     server_price_per_month = server.price_kopeks
-                    servers_discount_percent = _resolve_discount_percent(
+                    servers_discount_percent = _resolve_addon_discount_percent(
                         user,
                         promo_group,
                         "servers",

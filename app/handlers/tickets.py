@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
  
 from app.database.models import User, Ticket, TicketStatus
 from app.database.crud.ticket import TicketCRUD, TicketMessageCRUD
+from app.database.crud.user import get_user_by_id
 from app.keyboards.inline import (
     get_ticket_cancel_keyboard,
     get_my_tickets_keyboard,
@@ -374,12 +375,17 @@ async def show_my_tickets(
         except ValueError:
             current_page = 1
     
-    # Получаем тикеты пользователя (открытые/закрытые отдельно)
-    all_tickets = await TicketCRUD.get_user_tickets(db, db_user.id, limit=100)
-    open_tickets = [t for t in all_tickets if t.status != TicketStatus.CLOSED.value]
-    closed_tickets = [t for t in all_tickets if t.status == TicketStatus.CLOSED.value]
-    
-    if not open_tickets and not closed_tickets:
+    # Пагинация открытых тикетов из БД
+    per_page = 10
+    total_open = await TicketCRUD.count_user_tickets_by_statuses(db, db_user.id, [TicketStatus.OPEN.value, TicketStatus.ANSWERED.value, TicketStatus.PENDING.value])
+    total_pages = max(1, (total_open + per_page - 1) // per_page)
+    current_page = max(1, min(current_page, total_pages))
+    offset = (current_page - 1) * per_page
+    open_tickets = await TicketCRUD.get_user_tickets_by_statuses(db, db_user.id, [TicketStatus.OPEN.value, TicketStatus.ANSWERED.value, TicketStatus.PENDING.value], limit=per_page, offset=offset)
+
+    # Проверка на отсутствие тикетов совсем (ни открытых, ни закрытых)
+    has_closed_any = await TicketCRUD.count_user_tickets_by_statuses(db, db_user.id, [TicketStatus.CLOSED.value]) > 0
+    if not open_tickets and not has_closed_any:
         await callback.message.edit_text(
             texts.t("NO_TICKETS", "У вас пока нет тикетов."),
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
@@ -400,32 +406,18 @@ async def show_my_tickets(
         await callback.answer()
         return
     
-    # Открытые с пагинацией
-    open_data = []
-    for t in open_tickets:
-        if t.status != TicketStatus.CLOSED.value:
-            open_data.append({'id': t.id, 'title': t.title, 'status_emoji': t.status_emoji})
-    per_page = 10
-    pag = get_pagination_info(total_count=len(open_data), page=current_page, per_page=per_page)
-    # Корректируем текущую страницу в допустимые границы
-    current_page = max(1, min(current_page, pag["total_pages"]))
-    start_index = (current_page - 1) * per_page
-    end_index = start_index + per_page
-    page_items = open_data[start_index:end_index]
-    keyboard = get_my_tickets_keyboard(page_items, current_page=current_page, total_pages=pag["total_pages"], language=db_user.language)
+    # Открытые с пагинацией (DB)
+    open_data = [{'id': t.id, 'title': t.title, 'status_emoji': t.status_emoji} for t in open_tickets]
+    keyboard = get_my_tickets_keyboard(open_data, current_page=current_page, total_pages=total_pages, language=db_user.language, page_prefix="my_tickets_page_")
     # Добавим кнопку перехода к закрытым
     keyboard.inline_keyboard.insert(0, [types.InlineKeyboardButton(text=texts.t("VIEW_CLOSED_TICKETS", "🟢 Закрытые тикеты"), callback_data="my_tickets_closed")])
-    # Покажем список тикетов c логотипом, если режим включен
-    if settings.ENABLE_LOGO_MODE and callback.message.photo:
-        from app.utils.photo_message import edit_or_answer_photo
-        await edit_or_answer_photo(
-            callback=callback,
-            caption=texts.t("MY_TICKETS_TITLE", "📋 Ваши тикеты:"),
-            keyboard=keyboard,
-            parse_mode="HTML",
-        )
-    else:
-        await callback.message.edit_text(texts.t("MY_TICKETS_TITLE", "📋 Ваши тикеты:"), reply_markup=keyboard)
+    # Всегда используем фото-рендер с логотипом (утилита сама сделает фоллбек при необходимости)
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t("MY_TICKETS_TITLE", "📋 Ваши тикеты:"),
+        keyboard=keyboard,
+        parse_mode="HTML",
+    )
     await callback.answer()
 
 
@@ -435,9 +427,18 @@ async def show_my_tickets_closed(
     db: AsyncSession
 ):
     texts = get_texts(db_user.language)
-    # Пагинация (при необходимости можно добавить аналогично open)
-    tickets = await TicketCRUD.get_user_tickets(db, db_user.id, status=TicketStatus.CLOSED.value, limit=10)
-    if not tickets:
+    # Пагинация закрытых
+    current_page = 1
+    data_str = callback.data
+    if data_str.startswith("my_tickets_closed_page_"):
+        try:
+            current_page = int(data_str.replace("my_tickets_closed_page_", ""))
+        except ValueError:
+            current_page = 1
+
+    per_page = 10
+    total_closed = await TicketCRUD.count_user_tickets_by_statuses(db, db_user.id, [TicketStatus.CLOSED.value])
+    if total_closed == 0:
         await callback.message.edit_text(
             texts.t("NO_CLOSED_TICKETS", "Закрытых тикетов пока нет."),
             reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
@@ -447,19 +448,19 @@ async def show_my_tickets_closed(
         )
         await callback.answer()
         return
+    total_pages = max(1, (total_closed + per_page - 1) // per_page)
+    current_page = max(1, min(current_page, total_pages))
+    offset = (current_page - 1) * per_page
+    tickets = await TicketCRUD.get_user_tickets_by_statuses(db, db_user.id, [TicketStatus.CLOSED.value], limit=per_page, offset=offset)
     data = [{'id': t.id, 'title': t.title, 'status_emoji': t.status_emoji} for t in tickets]
-    kb = get_my_tickets_keyboard(data, current_page=1, language=db_user.language)
+    kb = get_my_tickets_keyboard(data, current_page=current_page, total_pages=total_pages, language=db_user.language, page_prefix="my_tickets_closed_page_")
     kb.inline_keyboard.insert(0, [types.InlineKeyboardButton(text=texts.t("BACK_TO_OPEN_TICKETS", "🔴 Открытые тикеты"), callback_data="my_tickets")])
-    if settings.ENABLE_LOGO_MODE and callback.message.photo:
-        from app.utils.photo_message import edit_or_answer_photo
-        await edit_or_answer_photo(
-            callback=callback,
-            caption=texts.t("CLOSED_TICKETS_TITLE", "🟢 Закрытые тикеты:"),
-            keyboard=kb,
-            parse_mode="HTML",
-        )
-    else:
-        await callback.message.edit_text(texts.t("CLOSED_TICKETS_TITLE", "🟢 Закрытые тикеты:"), reply_markup=kb)
+    await edit_or_answer_photo(
+        callback=callback,
+        caption=texts.t("CLOSED_TICKETS_TITLE", "🟢 Закрытые тикеты:"),
+        keyboard=kb,
+        parse_mode="HTML",
+    )
     await callback.answer()
 
 
@@ -758,7 +759,10 @@ async def handle_ticket_reply(
         if ticket.status == TicketStatus.CLOSED.value:
             texts = get_texts(db_user.language)
             await message.answer(
-                texts.t("TICKET_CLOSED", "✅ Тикет закрыт.")
+                texts.t("TICKET_CLOSED", "✅ Тикет закрыт."),
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[[types.InlineKeyboardButton(text=texts.t("CLOSE_NOTIFICATION", "❌ Закрыть уведомление"), callback_data=f"close_ticket_notification_{ticket.id}")]]
+                )
             )
             await state.clear()
             return
@@ -767,7 +771,10 @@ async def handle_ticket_reply(
         if ticket.status == TicketStatus.CLOSED.value or ticket.is_user_reply_blocked:
             texts = get_texts(db_user.language)
             await message.answer(
-                texts.t("TICKET_CLOSED_NO_REPLY", "❌ Тикет закрыт, ответить невозможно.")
+                texts.t("TICKET_CLOSED_NO_REPLY", "❌ Тикет закрыт, ответить невозможно."),
+                reply_markup=types.InlineKeyboardMarkup(
+                    inline_keyboard=[[types.InlineKeyboardButton(text=texts.t("CLOSE_NOTIFICATION", "❌ Закрыть уведомление"), callback_data=f"close_ticket_notification_{ticket.id}")]]
+                )
             )
             await state.clear()
             return
@@ -929,10 +936,21 @@ async def notify_admins_about_new_ticket(ticket: Ticket, db: AsyncSession):
         if len(title) > 60:
             title = title[:57] + "..."
 
+        # Загрузим пользователя, чтобы отобразить реальный Telegram ID и username
+        try:
+            user = await get_user_by_id(db, ticket.user_id)
+        except Exception:
+            user = None
+        full_name = user.full_name if user else "Unknown"
+        telegram_id_display = user.telegram_id if user else "—"
+        username_display = (user.username or "отсутствует") if user else "отсутствует"
+
         notification_text = (
             f"🎫 <b>НОВЫЙ ТИКЕТ</b>\n\n"
             f"🆔 <b>ID:</b> <code>{ticket.id}</code>\n"
-            f"👤 <b>User ID:</b> <code>{ticket.user_id}</code>\n"
+            f"👤 <b>Пользователь:</b> {full_name}\n"
+            f"🆔 <b>Telegram ID:</b> <code>{telegram_id_display}</code>\n"
+            f"📱 <b>Username:</b> @{username_display}\n"
             f"📝 <b>Заголовок:</b> {title or '—'}\n"
             f"📅 <b>Создан:</b> {ticket.created_at.strftime('%d.%m.%Y %H:%M')}\n"
         )
@@ -980,6 +998,10 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(
         show_my_tickets_closed,
         F.data == "my_tickets_closed"
+    )
+    dp.callback_query.register(
+        show_my_tickets_closed,
+        F.data.startswith("my_tickets_closed_page_")
     )
     
     dp.callback_query.register(

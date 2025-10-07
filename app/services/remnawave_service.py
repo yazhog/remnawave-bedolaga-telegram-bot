@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from typing import Dict, List, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete
@@ -20,17 +21,56 @@ from app.database.models import (
 logger = logging.getLogger(__name__)
 
 
+class RemnaWaveConfigurationError(Exception):
+    """Raised when RemnaWave API configuration is missing."""
+
+
 class RemnaWaveService:
-    
+
     def __init__(self):
         auth_params = settings.get_remnawave_auth_params()
-        self.api = RemnaWaveAPI(
-            base_url=auth_params["base_url"],
-            api_key=auth_params["api_key"],
-            secret_key=auth_params["secret_key"],
-            username=auth_params["username"],
-            password=auth_params["password"]
-        )
+        base_url = (auth_params.get("base_url") or "").strip()
+        api_key = (auth_params.get("api_key") or "").strip()
+
+        self._config_error: Optional[str] = None
+
+        if not base_url:
+            self._config_error = "REMNAWAVE_API_URL не настроен"
+        elif not api_key:
+            self._config_error = "REMNAWAVE_API_KEY не настроен"
+
+        self.api: Optional[RemnaWaveAPI]
+        if self._config_error:
+            self.api = None
+        else:
+            self.api = RemnaWaveAPI(
+                base_url=base_url,
+                api_key=api_key,
+                secret_key=auth_params.get("secret_key"),
+                username=auth_params.get("username"),
+                password=auth_params.get("password")
+            )
+
+    @property
+    def is_configured(self) -> bool:
+        return self._config_error is None
+
+    @property
+    def configuration_error(self) -> Optional[str]:
+        return self._config_error
+
+    def _ensure_configured(self) -> None:
+        if not self.is_configured or self.api is None:
+            raise RemnaWaveConfigurationError(
+                self._config_error or "RemnaWave API не настроен"
+            )
+
+    @asynccontextmanager
+    async def get_api_client(self):
+        self._ensure_configured()
+        assert self.api is not None
+        async with self.api as api:
+            yield api
 
     def _parse_remnawave_date(self, date_str: str) -> datetime:
         if not date_str:
@@ -62,7 +102,7 @@ class RemnaWaveService:
     
     async def get_system_statistics(self) -> Dict[str, Any]:
             try:
-                async with self.api as api:
+                async with self.get_api_client() as api:
                     logger.info("Получение системной статистики RemnaWave...")
                 
                     try:
@@ -255,7 +295,7 @@ class RemnaWaveService:
     async def get_all_nodes(self) -> List[Dict[str, Any]]:
         
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 nodes = await api.get_all_nodes()
                 
                 result = []
@@ -284,7 +324,7 @@ class RemnaWaveService:
     async def test_connection(self) -> bool:
         
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 stats = await api.get_system_stats()
                 logger.info("✅ Соединение с Remnawave API работает")
                 return True
@@ -295,7 +335,7 @@ class RemnaWaveService:
     
     async def get_node_details(self, node_uuid: str) -> Optional[Dict[str, Any]]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 node = await api.get_node_by_uuid(node_uuid)
                 
                 if not node:
@@ -321,7 +361,7 @@ class RemnaWaveService:
     
     async def manage_node(self, node_uuid: str, action: str) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 if action == "enable":
                     await api.enable_node(node_uuid)
                 elif action == "disable":
@@ -340,7 +380,7 @@ class RemnaWaveService:
     
     async def restart_all_nodes(self) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 result = await api.restart_all_nodes()
                 
                 if result:
@@ -354,7 +394,7 @@ class RemnaWaveService:
 
     async def update_squad_inbounds(self, squad_uuid: str, inbound_uuids: List[str]) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 data = {
                     'uuid': squad_uuid,
                     'inbounds': inbound_uuids
@@ -368,7 +408,7 @@ class RemnaWaveService:
     async def get_all_squads(self) -> List[Dict[str, Any]]:
         
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 squads = await api.get_internal_squads()
                 
                 result = []
@@ -390,7 +430,7 @@ class RemnaWaveService:
     
     async def create_squad(self, name: str, inbounds: List[str]) -> Optional[str]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 squad = await api.create_internal_squad(name, inbounds)
                 
                 logger.info(f"✅ Создан новый сквад: {name}")
@@ -402,7 +442,7 @@ class RemnaWaveService:
     
     async def update_squad(self, uuid: str, name: str = None, inbounds: List[str] = None) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 await api.update_internal_squad(uuid, name, inbounds)
                 
                 logger.info(f"✅ Обновлен сквад {uuid}")
@@ -414,7 +454,7 @@ class RemnaWaveService:
     
     async def delete_squad(self, uuid: str) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 result = await api.delete_internal_squad(uuid)
                 
                 if result:
@@ -432,7 +472,7 @@ class RemnaWaveService:
             
             logger.info(f"🔄 Начинаем синхронизацию типа: {sync_type}")
             
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 panel_users = []
                 start = 0
                 size = 100 
@@ -458,6 +498,7 @@ class RemnaWaveService:
                             'usedTrafficBytes': user_obj.used_traffic_bytes,
                             'hwidDeviceLimit': user_obj.hwid_device_limit,
                             'subscriptionUrl': user_obj.subscription_url,
+                            'subscriptionCryptoLink': user_obj.happ_crypto_link,
                             'activeInternalSquads': user_obj.active_internal_squads
                         }
                         panel_users.append(user_dict)
@@ -549,7 +590,7 @@ class RemnaWaveService:
                             
                             if db_user.remnawave_uuid:
                                 try:
-                                    async with self.api as api:
+                                    async with self.get_api_client() as api:
                                         devices_reset = await api.reset_user_devices(db_user.remnawave_uuid)
                                         if devices_reset:
                                             logger.info(f"🔧 Сброшены HWID устройства для пользователя {telegram_id}")
@@ -581,6 +622,7 @@ class RemnaWaveService:
                             subscription.autopay_enabled = False
                             subscription.remnawave_short_uuid = None
                             subscription.subscription_url = ""
+                            subscription.subscription_crypto_link = ""
                             
                             db_user.remnawave_uuid = None
                             
@@ -637,14 +679,18 @@ class RemnaWaveService:
             subscription_data = {
                 'user_id': user.id,
                 'status': status.value,
-                'is_trial': False, 
+                'is_trial': False,
                 'end_date': expire_at,
                 'traffic_limit_gb': traffic_limit_gb,
                 'traffic_used_gb': traffic_used_gb,
                 'device_limit': panel_user.get('hwidDeviceLimit', 1) or 1,
                 'connected_squads': squad_uuids,
                 'remnawave_short_uuid': panel_user.get('shortUuid'),
-                'subscription_url': panel_user.get('subscriptionUrl', '')
+                'subscription_url': panel_user.get('subscriptionUrl', ''),
+                'subscription_crypto_link': (
+                    panel_user.get('subscriptionCryptoLink')
+                    or (panel_user.get('happ') or {}).get('cryptoLink', '')
+                )
             }
         
             subscription = await create_subscription(db, **subscription_data)
@@ -667,7 +713,11 @@ class RemnaWaveService:
                     device_limit=1,
                     connected_squads=[],
                     remnawave_short_uuid=panel_user.get('shortUuid'),
-                    subscription_url=panel_user.get('subscriptionUrl', '')
+                    subscription_url=panel_user.get('subscriptionUrl', ''),
+                    subscription_crypto_link=(
+                        panel_user.get('subscriptionCryptoLink')
+                        or (panel_user.get('happ') or {}).get('cryptoLink', '')
+                    )
                 )
                 logger.info(f"✅ Создана базовая подписка для пользователя {user.telegram_id}")
             except Exception as basic_error:
@@ -733,6 +783,13 @@ class RemnaWaveService:
             panel_url = panel_user.get('subscriptionUrl', '')
             if not subscription.subscription_url or subscription.subscription_url != panel_url:
                 subscription.subscription_url = panel_url
+
+            panel_crypto_link = (
+                panel_user.get('subscriptionCryptoLink')
+                or (panel_user.get('happ') or {}).get('cryptoLink', '')
+            )
+            if panel_crypto_link and subscription.subscription_crypto_link != panel_crypto_link:
+                subscription.subscription_crypto_link = panel_crypto_link
         
             active_squads = panel_user.get('activeInternalSquads', [])
             squad_uuids = []
@@ -763,7 +820,7 @@ class RemnaWaveService:
             
             users = await get_users_list(db, offset=0, limit=10000)
             
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 for user in users:
                     if not user.subscription:
                         continue
@@ -825,7 +882,7 @@ class RemnaWaveService:
     
     async def get_user_traffic_stats(self, telegram_id: int) -> Optional[Dict[str, Any]]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 users = await api.get_user_by_telegram_id(telegram_id)
                 
                 if not users:
@@ -848,23 +905,35 @@ class RemnaWaveService:
             return None
     
     async def test_api_connection(self) -> Dict[str, Any]:
+        if not self.is_configured:
+            return {
+                "status": "not_configured",
+                "message": self.configuration_error or "RemnaWave API не настроен",
+                "api_url": settings.REMNAWAVE_API_URL,
+            }
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 system_stats = await api.get_system_stats()
-                
+
                 return {
                     "status": "connected",
                     "message": "Подключение успешно",
                     "api_url": settings.REMNAWAVE_API_URL,
                     "system_info": system_stats
                 }
-                
+
         except RemnaWaveAPIError as e:
             return {
                 "status": "error",
                 "message": f"Ошибка API: {e.message}",
                 "status_code": e.status_code,
                 "api_url": settings.REMNAWAVE_API_URL
+            }
+        except RemnaWaveConfigurationError as e:
+            return {
+                "status": "not_configured",
+                "message": str(e),
+                "api_url": settings.REMNAWAVE_API_URL,
             }
         except Exception as e:
             return {
@@ -875,7 +944,7 @@ class RemnaWaveService:
     
     async def get_nodes_realtime_usage(self) -> List[Dict[str, Any]]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 usage_data = await api.get_nodes_realtime_usage()
                 return usage_data
                 
@@ -885,7 +954,7 @@ class RemnaWaveService:
 
     async def get_squad_details(self, squad_uuid: str) -> Optional[Dict]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 squad = await api.get_internal_squad_by_uuid(squad_uuid)
                 if squad:
                     return {
@@ -902,7 +971,7 @@ class RemnaWaveService:
 
     async def add_all_users_to_squad(self, squad_uuid: str) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 response = await api._make_request('POST', f'/api/internal-squads/{squad_uuid}/bulk-actions/add-users')
                 return response.get('response', {}).get('eventSent', False)
         except Exception as e:
@@ -911,25 +980,16 @@ class RemnaWaveService:
 
     async def remove_all_users_from_squad(self, squad_uuid: str) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 response = await api._make_request('DELETE', f'/api/internal-squads/{squad_uuid}/bulk-actions/remove-users')
                 return response.get('response', {}).get('eventSent', False)
         except Exception as e:
             logger.error(f"Error removing users from squad: {e}")
             return False
 
-    async def delete_squad(self, squad_uuid: str) -> bool:
-        try:
-            async with self.api as api:
-                response = await api.delete_internal_squad(squad_uuid)
-                return response
-        except Exception as e:
-            logger.error(f"Error deleting squad: {e}")
-            return False
-
     async def get_all_inbounds(self) -> List[Dict]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 response = await api._make_request('GET', '/api/config-profiles/inbounds')
                 inbounds_data = response.get('response', {}).get('inbounds', [])
             
@@ -950,7 +1010,7 @@ class RemnaWaveService:
 
     async def rename_squad(self, squad_uuid: str, new_name: str) -> bool:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 data = {
                     'uuid': squad_uuid,
                     'name': new_name
@@ -961,18 +1021,9 @@ class RemnaWaveService:
             logger.error(f"Error renaming squad: {e}")
             return False
 
-    async def create_squad(self, name: str, inbound_uuids: List[str]) -> bool:
-        try:
-            async with self.api as api:
-                squad = await api.create_internal_squad(name, inbound_uuids)
-                return squad is not None
-        except Exception as e:
-            logger.error(f"Error creating squad: {e}")
-            return False
-
     async def get_node_user_usage_by_range(self, node_uuid: str, start_date, end_date) -> List[Dict[str, Any]]:
         try:
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 start_str = start_date.isoformat() + "Z"
                 end_str = end_date.isoformat() + "Z"
                 
@@ -1050,7 +1101,7 @@ class RemnaWaveService:
             
             if user.remnawave_uuid:
                 try:
-                    async with self.api as api:
+                    async with self.get_api_client() as api:
                         devices_reset = await api.reset_user_devices(user.remnawave_uuid)
                         if devices_reset:
                             logger.info(f"🔧 Сброшены HWID устройства для {user.telegram_id}")
@@ -1113,6 +1164,7 @@ class RemnaWaveService:
                     user.subscription.autopay_days_before = 3
                     user.subscription.remnawave_short_uuid = None
                     user.subscription.subscription_url = ""
+                    user.subscription.subscription_crypto_link = ""
                     user.subscription.updated_at = datetime.utcnow()
                 
                 await db.commit()
@@ -1136,7 +1188,7 @@ class RemnaWaveService:
         
             logger.info("🧹 Начинаем усиленную очистку неактуальных подписок...")
         
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 panel_users_data = await api._make_request('GET', '/api/users')
                 panel_users = panel_users_data['response']['users']
         
@@ -1200,7 +1252,7 @@ class RemnaWaveService:
         
             logger.info("🔄 Начинаем синхронизацию статусов подписок...")
         
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 panel_users_data = await api._make_request('GET', '/api/users')
                 panel_users = panel_users_data['response']['users']
         
@@ -1290,11 +1342,12 @@ class RemnaWaveService:
                 
                         if not subscription.remnawave_short_uuid and user.remnawave_uuid:
                             try:
-                                async with self.api as api:
+                                async with self.get_api_client() as api:
                                     rw_user = await api.get_user_by_uuid(user.remnawave_uuid)
                                     if rw_user:
                                         subscription.remnawave_short_uuid = rw_user.short_uuid
                                         subscription.subscription_url = rw_user.subscription_url
+                                        subscription.subscription_crypto_link = rw_user.happ_crypto_link
                                         logger.info(f"🔧 Восстановлены данные Remnawave для {user.telegram_id}")
                                         issues_fixed += 1
                             except Exception as rw_error:
@@ -1538,7 +1591,7 @@ class RemnaWaveService:
         try:
             start_time = datetime.utcnow()
                 
-            async with self.api as api:
+            async with self.get_api_client() as api:
                 try:
                     system_stats = await api.get_system_stats()
                     api_available = True

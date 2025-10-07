@@ -1,7 +1,9 @@
+import logging
 import os
 import re
 import html
 from collections import defaultdict
+from datetime import time
 from typing import List, Optional, Union, Dict
 from pydantic_settings import BaseSettings
 from pydantic import field_validator, Field
@@ -16,17 +18,27 @@ class Settings(BaseSettings):
     SUPPORT_MENU_ENABLED: bool = True
     SUPPORT_SYSTEM_MODE: str = "both"  # one of: tickets, contact, both
     SUPPORT_MENU_ENABLED: bool = True
+    # SLA for support tickets
+    SUPPORT_TICKET_SLA_ENABLED: bool = True
+    SUPPORT_TICKET_SLA_MINUTES: int = 5
+    SUPPORT_TICKET_SLA_CHECK_INTERVAL_SECONDS: int = 60
+    SUPPORT_TICKET_SLA_REMINDER_COOLDOWN_MINUTES: int = 15
 
     ADMIN_NOTIFICATIONS_ENABLED: bool = False
     ADMIN_NOTIFICATIONS_CHAT_ID: Optional[str] = None
     ADMIN_NOTIFICATIONS_TOPIC_ID: Optional[int] = None
     ADMIN_NOTIFICATIONS_TICKET_TOPIC_ID: Optional[int] = None
 
+    ADMIN_REPORTS_ENABLED: bool = False
+    ADMIN_REPORTS_CHAT_ID: Optional[str] = None
+    ADMIN_REPORTS_TOPIC_ID: Optional[int] = None
+    ADMIN_REPORTS_SEND_TIME: Optional[str] = None
+
     CHANNEL_SUB_ID: Optional[str] = None
     CHANNEL_LINK: Optional[str] = None
     CHANNEL_IS_REQUIRED_SUB: bool = False
     
-    DATABASE_URL: str = ""
+    DATABASE_URL: Optional[str] = None
     
     POSTGRES_HOST: str = "postgres"
     POSTGRES_PORT: int = 5432
@@ -41,8 +53,8 @@ class Settings(BaseSettings):
     
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    REMNAWAVE_API_URL: str
-    REMNAWAVE_API_KEY: str
+    REMNAWAVE_API_URL: Optional[str] = None
+    REMNAWAVE_API_KEY: Optional[str] = None
     REMNAWAVE_SECRET_KEY: Optional[str] = None
 
     REMNAWAVE_USERNAME: Optional[str] = None
@@ -54,10 +66,12 @@ class Settings(BaseSettings):
     TRIAL_DURATION_DAYS: int = 3
     TRIAL_TRAFFIC_LIMIT_GB: int = 10
     TRIAL_DEVICE_LIMIT: int = 2
+    TRIAL_ADD_REMAINING_DAYS_TO_PAID: bool = False
     DEFAULT_TRAFFIC_LIMIT_GB: int = 100
     DEFAULT_DEVICE_LIMIT: int = 1
-    TRIAL_SQUAD_UUID: str
+    TRIAL_SQUAD_UUID: Optional[str] = None
     DEFAULT_TRAFFIC_RESET_STRATEGY: str = "MONTH"
+    RESET_TRAFFIC_ON_PAYMENT: bool = False
     MAX_DEVICES_LIMIT: int = 20
     
     TRIAL_WARNING_HOURS: int = 2 
@@ -135,6 +149,7 @@ class Settings(BaseSettings):
     TRIBUTE_API_KEY: Optional[str] = None
     TRIBUTE_DONATE_LINK: Optional[str] = None
     TRIBUTE_WEBHOOK_PATH: str = "/tribute-webhook"
+    TRIBUTE_WEBHOOK_HOST: str = "0.0.0.0"
     TRIBUTE_WEBHOOK_PORT: int = 8081
 
     YOOKASSA_ENABLED: bool = False
@@ -144,9 +159,10 @@ class Settings(BaseSettings):
     YOOKASSA_DEFAULT_RECEIPT_EMAIL: Optional[str] = None
     YOOKASSA_VAT_CODE: int = 1
     YOOKASSA_SBP_ENABLED: bool = False 
-    YOOKASSA_PAYMENT_MODE: str = "full_payment" 
+    YOOKASSA_PAYMENT_MODE: str = "full_payment"
     YOOKASSA_PAYMENT_SUBJECT: str = "service"
     YOOKASSA_WEBHOOK_PATH: str = "/yookassa-webhook"
+    YOOKASSA_WEBHOOK_HOST: str = "0.0.0.0"
     YOOKASSA_WEBHOOK_PORT: int = 8082
     YOOKASSA_WEBHOOK_SECRET: Optional[str] = None
     YOOKASSA_MIN_AMOUNT_KOPEKS: int = 5000
@@ -169,8 +185,48 @@ class Settings(BaseSettings):
     CRYPTOBOT_ASSETS: str = "USDT,TON,BTC,ETH"
     CRYPTOBOT_INVOICE_EXPIRES_HOURS: int = 24
 
+    MULENPAY_ENABLED: bool = False
+    MULENPAY_API_KEY: Optional[str] = None
+    MULENPAY_SECRET_KEY: Optional[str] = None
+    MULENPAY_SHOP_ID: Optional[int] = None
+    MULENPAY_BASE_URL: str = "https://mulenpay.ru/api"
+    MULENPAY_WEBHOOK_PATH: str = "/mulenpay-webhook"
+    MULENPAY_DESCRIPTION: str = "Пополнение баланса"
+    MULENPAY_LANGUAGE: str = "ru"
+    MULENPAY_VAT_CODE: int = 0
+    MULENPAY_PAYMENT_SUBJECT: int = 4
+    MULENPAY_PAYMENT_MODE: int = 4
+    MULENPAY_MIN_AMOUNT_KOPEKS: int = 10000
+    MULENPAY_MAX_AMOUNT_KOPEKS: int = 10000000
+
+    PAL24_ENABLED: bool = False
+    PAL24_API_TOKEN: Optional[str] = None
+    PAL24_SHOP_ID: Optional[str] = None
+    PAL24_SIGNATURE_TOKEN: Optional[str] = None
+    PAL24_BASE_URL: str = "https://pal24.pro/api/v1/"
+    PAL24_WEBHOOK_PATH: str = "/pal24-webhook"
+    PAL24_WEBHOOK_PORT: int = 8084
+    PAL24_PAYMENT_DESCRIPTION: str = "Пополнение баланса"
+    PAL24_MIN_AMOUNT_KOPEKS: int = 10000
+    PAL24_MAX_AMOUNT_KOPEKS: int = 100000000
+    PAL24_REQUEST_TIMEOUT: int = 30
+    PAL24_SBP_BUTTON_TEXT: Optional[str] = None
+    PAL24_CARD_BUTTON_TEXT: Optional[str] = None
+
     CONNECT_BUTTON_MODE: str = "guide"
     MINIAPP_CUSTOM_URL: str = ""
+    MINIAPP_PURCHASE_URL: str = ""
+    MINIAPP_SERVICE_NAME_EN: str = "Bedolaga VPN"
+    MINIAPP_SERVICE_NAME_RU: str = "Bedolaga VPN"
+    MINIAPP_SERVICE_DESCRIPTION_EN: str = "Secure & Fast Connection"
+    MINIAPP_SERVICE_DESCRIPTION_RU: str = "Безопасное и быстрое подключение"
+    CONNECT_BUTTON_HAPP_DOWNLOAD_ENABLED: bool = False
+    HAPP_CRYPTOLINK_REDIRECT_TEMPLATE: Optional[str] = None
+    HAPP_DOWNLOAD_LINK_IOS: Optional[str] = None
+    HAPP_DOWNLOAD_LINK_ANDROID: Optional[str] = None
+    HAPP_DOWNLOAD_LINK_MACOS: Optional[str] = None
+    HAPP_DOWNLOAD_LINK_WINDOWS: Optional[str] = None
+    HAPP_DOWNLOAD_LINK_PC: Optional[str] = None
     HIDE_SUBSCRIPTION_LINK: bool = False
     ENABLE_LOGO_MODE: bool = True
     LOGO_FILE: str = "vpn_logo.png"
@@ -179,6 +235,7 @@ class Settings(BaseSettings):
 
     DEFAULT_LANGUAGE: str = "ru"
     AVAILABLE_LANGUAGES: str = "ru,en"
+    LANGUAGE_SELECTION_ENABLED: bool = True
     
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/bot.log"
@@ -186,6 +243,19 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     WEBHOOK_URL: Optional[str] = None
     WEBHOOK_PATH: str = "/webhook"
+
+    WEB_API_ENABLED: bool = False
+    WEB_API_HOST: str = "0.0.0.0"
+    WEB_API_PORT: int = 8080
+    WEB_API_WORKERS: int = 1
+    WEB_API_ALLOWED_ORIGINS: str = "*"
+    WEB_API_DOCS_ENABLED: bool = False
+    WEB_API_TITLE: str = "Remnawave Bot Admin API"
+    WEB_API_VERSION: str = "1.0.0"
+    WEB_API_DEFAULT_TOKEN: Optional[str] = None
+    WEB_API_DEFAULT_TOKEN_NAME: str = "Bootstrap Token"
+    WEB_API_TOKEN_HASH_ALGORITHM: str = "sha256"
+    WEB_API_REQUEST_LOGGING: bool = True
     
     APP_CONFIG_PATH: str = "app-config.json"
     ENABLE_DEEP_LINKS: bool = True
@@ -221,6 +291,13 @@ class Settings(BaseSettings):
             "link": "external_link",
             "url": "external_link",
             "external_link": "external_link",
+            "miniapp": "external_link_miniapp",
+            "mini_app": "external_link_miniapp",
+            "mini-app": "external_link_miniapp",
+            "webapp": "external_link_miniapp",
+            "web_app": "external_link_miniapp",
+            "web-app": "external_link_miniapp",
+            "external_link_miniapp": "external_link_miniapp",
             "xray": "xray",
             "xraychecker": "xray",
             "xray_metrics": "xray",
@@ -228,8 +305,10 @@ class Settings(BaseSettings):
         }
 
         mode = aliases.get(normalized, normalized)
-        if mode not in {"disabled", "external_link", "xray"}:
-            raise ValueError("SERVER_STATUS_MODE must be one of: disabled, external_link, xray")
+        if mode not in {"disabled", "external_link", "external_link_miniapp", "xray"}:
+            raise ValueError(
+                "SERVER_STATUS_MODE must be one of: disabled, external_link, external_link_miniapp, xray"
+            )
         return mode
 
     @field_validator('SERVER_STATUS_ITEMS_PER_PAGE', mode='before')
@@ -329,6 +408,14 @@ class Settings(BaseSettings):
             "password": self.REMNAWAVE_PASSWORD,
             "auth_type": self.REMNAWAVE_AUTH_TYPE
         }
+
+    def get_pal24_sbp_button_text(self, fallback: str) -> str:
+        value = (self.PAL24_SBP_BUTTON_TEXT or "").strip()
+        return value or fallback
+
+    def get_pal24_card_button_text(self, fallback: str) -> str:
+        value = (self.PAL24_CARD_BUTTON_TEXT or "").strip()
+        return value or fallback
     
     def get_remnawave_user_delete_mode(self) -> str:
         """Возвращает режим удаления пользователей: 'delete' или 'disable'"""
@@ -383,10 +470,39 @@ class Settings(BaseSettings):
             return ["ru", "en"]
         except AttributeError:
             return ["ru", "en"]
-    
+
+    def is_language_selection_enabled(self) -> bool:
+        return bool(getattr(self, "LANGUAGE_SELECTION_ENABLED", True))
+
     def format_price(self, price_kopeks: int) -> str:
         rubles = price_kopeks // 100
         return f"{rubles} ₽"
+
+    def get_reports_chat_id(self) -> Optional[str]:
+        if self.ADMIN_REPORTS_CHAT_ID:
+            return self.ADMIN_REPORTS_CHAT_ID
+        return self.ADMIN_NOTIFICATIONS_CHAT_ID
+
+    def get_reports_topic_id(self) -> Optional[int]:
+        return self.ADMIN_REPORTS_TOPIC_ID or None
+
+    def get_reports_send_time(self) -> Optional[time]:
+        value = self.ADMIN_REPORTS_SEND_TIME
+        if not value:
+            return None
+
+        try:
+            hours_str, minutes_str = value.strip().split(":", 1)
+            hours = int(hours_str)
+            minutes = int(minutes_str)
+            if not (0 <= hours <= 23 and 0 <= minutes <= 59):
+                raise ValueError
+            return time(hour=hours, minute=minutes)
+        except (ValueError, AttributeError):
+            logging.getLogger(__name__).warning(
+                "Некорректное значение ADMIN_REPORTS_SEND_TIME: %s", value
+            )
+            return None
     
     def kopeks_to_rubles(self, kopeks: int) -> float:
         return kopeks / 100
@@ -409,6 +525,34 @@ class Settings(BaseSettings):
     
     def is_deep_links_enabled(self) -> bool:
         return self.ENABLE_DEEP_LINKS
+
+    def get_miniapp_branding(self) -> Dict[str, Dict[str, Optional[str]]]:
+        def _clean(value: Optional[str]) -> Optional[str]:
+            if value is None:
+                return None
+            value_str = str(value).strip()
+            return value_str or None
+
+        name_en = _clean(self.MINIAPP_SERVICE_NAME_EN)
+        name_ru = _clean(self.MINIAPP_SERVICE_NAME_RU)
+        desc_en = _clean(self.MINIAPP_SERVICE_DESCRIPTION_EN)
+        desc_ru = _clean(self.MINIAPP_SERVICE_DESCRIPTION_RU)
+
+        default_name = name_en or name_ru or "RemnaWave VPN"
+        default_description = desc_en or desc_ru or "Secure & Fast Connection"
+
+        return {
+            "service_name": {
+                "default": default_name,
+                "en": name_en,
+                "ru": name_ru,
+            },
+            "service_description": {
+                "default": default_description,
+                "en": desc_en,
+                "ru": desc_ru,
+            },
+        }
     
     def get_app_config_cache_ttl(self) -> int:
         return self.APP_CONFIG_CACHE_TTL
@@ -435,9 +579,24 @@ class Settings(BaseSettings):
         return "https://t.me/"
 
     def is_cryptobot_enabled(self) -> bool:
-        return (self.CRYPTOBOT_ENABLED and 
+        return (self.CRYPTOBOT_ENABLED and
                 self.CRYPTOBOT_API_TOKEN is not None)
-    
+
+    def is_mulenpay_enabled(self) -> bool:
+        return (
+            self.MULENPAY_ENABLED
+            and self.MULENPAY_API_KEY is not None
+            and self.MULENPAY_SECRET_KEY is not None
+            and self.MULENPAY_SHOP_ID is not None
+        )
+
+    def is_pal24_enabled(self) -> bool:
+        return (
+            self.PAL24_ENABLED
+            and self.PAL24_API_TOKEN is not None
+            and self.PAL24_SHOP_ID is not None
+        )
+
     def get_cryptobot_base_url(self) -> str:
         if self.CRYPTOBOT_TESTNET:
             return "https://testnet-pay.crypt.bot"
@@ -454,6 +613,41 @@ class Settings(BaseSettings):
     
     def get_cryptobot_invoice_expires_seconds(self) -> int:
         return self.CRYPTOBOT_INVOICE_EXPIRES_HOURS * 3600
+
+    def is_happ_cryptolink_mode(self) -> bool:
+        return self.CONNECT_BUTTON_MODE == "happ_cryptolink"
+
+    def is_happ_download_button_enabled(self) -> bool:
+        return self.is_happ_cryptolink_mode() and self.CONNECT_BUTTON_HAPP_DOWNLOAD_ENABLED
+
+    def should_hide_subscription_link(self) -> bool:
+        """Returns True when subscription links must be hidden from the interface."""
+
+        if self.is_happ_cryptolink_mode():
+            return False
+        return self.HIDE_SUBSCRIPTION_LINK
+
+    def get_happ_cryptolink_redirect_template(self) -> Optional[str]:
+        template = (self.HAPP_CRYPTOLINK_REDIRECT_TEMPLATE or "").strip()
+        return template or None
+
+    def get_happ_download_link(self, platform: str) -> Optional[str]:
+        platform_key = platform.lower()
+
+        if platform_key == "pc":
+            platform_key = "windows"
+
+        links = {
+            "ios": (self.HAPP_DOWNLOAD_LINK_IOS or "").strip(),
+            "android": (self.HAPP_DOWNLOAD_LINK_ANDROID or "").strip(),
+            "macos": (self.HAPP_DOWNLOAD_LINK_MACOS or "").strip(),
+            "windows": (
+                (self.HAPP_DOWNLOAD_LINK_WINDOWS or "").strip()
+                or (self.HAPP_DOWNLOAD_LINK_PC or "").strip()
+            ),
+        }
+        link = links.get(platform_key)
+        return link if link else None
 
     def is_maintenance_mode(self) -> bool:
         return self.MAINTENANCE_MODE
@@ -831,7 +1025,25 @@ class Settings(BaseSettings):
 
     def get_server_status_request_timeout(self) -> int:
         return max(1, self.SERVER_STATUS_REQUEST_TIMEOUT)
-    
+
+    def is_web_api_enabled(self) -> bool:
+        return bool(self.WEB_API_ENABLED)
+
+    def get_web_api_allowed_origins(self) -> list[str]:
+        raw = (self.WEB_API_ALLOWED_ORIGINS or "").split(",")
+        origins = [origin.strip() for origin in raw if origin.strip()]
+        return origins or ["*"]
+
+    def get_web_api_docs_config(self) -> Dict[str, Optional[str]]:
+        if self.WEB_API_DOCS_ENABLED:
+            return {
+                "docs_url": "/docs",
+                "redoc_url": "/redoc",
+                "openapi_url": "/openapi.json",
+            }
+
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+
     def get_support_system_mode(self) -> str:
         mode = (self.SUPPORT_SYSTEM_MODE or "both").strip().lower()
         return mode if mode in {"tickets", "contact", "both"} else "both"
@@ -841,32 +1053,6 @@ class Settings(BaseSettings):
     
     def is_support_contact_enabled(self) -> bool:
         return self.get_support_system_mode() in {"contact", "both"}
-        
-        enabled_packages = [pkg for pkg in packages if pkg["enabled"]]
-        if not enabled_packages:
-            return 0
-        
-        unlimited_package = next((pkg for pkg in enabled_packages if pkg["gb"] == 0), None)
-        
-        finite_packages = [pkg for pkg in enabled_packages if pkg["gb"] > 0]
-        if finite_packages:
-            max_package = max(finite_packages, key=lambda x: x["gb"])
-            
-            if gb > max_package["gb"]:
-                if unlimited_package:
-                    return unlimited_package["price"]
-                else:
-                    return max_package["price"]
-            
-            suitable_packages = [pkg for pkg in finite_packages if pkg["gb"] >= gb]
-            if suitable_packages:
-                nearest_package = min(suitable_packages, key=lambda x: x["gb"])
-                return nearest_package["price"]
-        
-        if unlimited_package:
-            return unlimited_package["price"]
-        
-        return 0
     
     model_config = {
         "env_file": ".env",
@@ -877,14 +1063,30 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-PERIOD_PRICES = {
-    14: settings.PRICE_14_DAYS,
-    30: settings.PRICE_30_DAYS,
-    60: settings.PRICE_60_DAYS,
-    90: settings.PRICE_90_DAYS,
-    180: settings.PRICE_180_DAYS,
-    360: settings.PRICE_360_DAYS,
+_PERIOD_PRICE_FIELDS: Dict[int, str] = {
+    14: "PRICE_14_DAYS",
+    30: "PRICE_30_DAYS",
+    60: "PRICE_60_DAYS",
+    90: "PRICE_90_DAYS",
+    180: "PRICE_180_DAYS",
+    360: "PRICE_360_DAYS",
 }
+
+
+def refresh_period_prices() -> None:
+    """Rebuild cached period price mapping using the latest settings."""
+
+    PERIOD_PRICES.clear()
+    PERIOD_PRICES.update(
+        {
+            days: getattr(settings, field_name, 0)
+            for days, field_name in _PERIOD_PRICE_FIELDS.items()
+        }
+    )
+
+
+PERIOD_PRICES: Dict[int, int] = {}
+refresh_period_prices()
 
 def get_traffic_prices() -> Dict[int, int]:
     packages = settings.get_traffic_packages()

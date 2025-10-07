@@ -116,13 +116,33 @@ async def extend_subscription(
     else:
         subscription.end_date = current_time + timedelta(days=days)
         logger.info(f"📅 Подписка истекла, устанавливаем новую дату окончания")
-    
+
+    if subscription.is_trial:
+        start_date = subscription.start_date or current_time
+        total_duration = subscription.end_date - start_date
+        max_trial_duration = timedelta(days=settings.TRIAL_DURATION_DAYS)
+
+        if total_duration > max_trial_duration:
+            subscription.is_trial = False
+            logger.info(
+                "🎯 Подписка %s автоматически переведена из триальной в платную после продления"
+                ", итоговая длительность: %s дней",
+                subscription.id,
+                total_duration.days,
+            )
+            if subscription.user:
+                subscription.user.has_had_paid_subscription = True
+
     if subscription.status == SubscriptionStatus.EXPIRED.value:
         subscription.status = SubscriptionStatus.ACTIVE.value
         logger.info(f"🔄 Статус изменён с EXPIRED на ACTIVE")
-    
+
+    if settings.RESET_TRAFFIC_ON_PAYMENT:
+        subscription.traffic_used_gb = 0.0
+        logger.info("🔄 Сбрасываем использованный трафик согласно настройке RESET_TRAFFIC_ON_PAYMENT")
+
     subscription.updated_at = current_time
-    
+
     await db.commit()
     await db.refresh(subscription)
     await clear_notifications(db, subscription.id)
@@ -531,7 +551,15 @@ async def calculate_subscription_total_cost(
     
     months_in_period = calculate_months_from_days(period_days)
     
-    base_price = PERIOD_PRICES.get(period_days, 0)
+    base_price_original = PERIOD_PRICES.get(period_days, 0)
+    period_discount_percent = _get_discount_percent(
+        user,
+        promo_group,
+        "period",
+        period_days=period_days,
+    )
+    base_discount_total = base_price_original * period_discount_percent // 100
+    base_price = base_price_original - base_discount_total
     
     promo_group = promo_group or (user.promo_group if user else None)
 
@@ -577,6 +605,9 @@ async def calculate_subscription_total_cost(
 
     details = {
         'base_price': base_price,
+        'base_price_original': base_price_original,
+        'base_discount_percent': period_discount_percent,
+        'base_discount_total': base_discount_total,
         'traffic_price_per_month': traffic_price_per_month,
         'traffic_discount_percent': traffic_discount_percent,
         'traffic_discount_total': total_traffic_discount,
@@ -954,7 +985,8 @@ async def create_subscription(
     device_limit: int = 1,
     connected_squads: list = None,
     remnawave_short_uuid: str = None,
-    subscription_url: str = ""
+    subscription_url: str = "",
+    subscription_crypto_link: str = ""
 ) -> Subscription:
     
     if end_date is None:
@@ -973,7 +1005,8 @@ async def create_subscription(
         device_limit=device_limit,
         connected_squads=connected_squads,
         remnawave_short_uuid=remnawave_short_uuid,
-        subscription_url=subscription_url
+        subscription_url=subscription_url,
+        subscription_crypto_link=subscription_crypto_link
     )
     
     db.add(subscription)

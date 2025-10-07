@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 FROM python:3.13-slim
 
-ARG VERSION="v2.3.8"
+ARG VERSION="v2.4.5"
 ARG BUILD_DATE
 ARG VCS_REF
 
@@ -45,7 +45,7 @@ ENV PYTHONPATH=/app \
     BUILD_DATE=${BUILD_DATE} \
     VCS_REF=${VCS_REF}
 
-EXPOSE 8081 8082 8083
+EXPOSE 8080 8081 8082 
 
 LABEL org.opencontainers.image.title="Bedolaga RemnaWave Bot" \
       org.opencontainers.image.description="Telegram bot for RemnaWave VPN service" \

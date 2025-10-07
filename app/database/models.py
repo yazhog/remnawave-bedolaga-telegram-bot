@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Dict
 from enum import Enum
 
 from sqlalchemy import (
@@ -14,6 +14,8 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     UniqueConstraint,
+    Index,
+    Table,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, Mapped, mapped_column
@@ -21,6 +23,24 @@ from sqlalchemy.sql import func
 
 
 Base = declarative_base()
+
+
+server_squad_promo_groups = Table(
+    "server_squad_promo_groups",
+    Base.metadata,
+    Column(
+        "server_squad_id",
+        Integer,
+        ForeignKey("server_squads.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "promo_group_id",
+        Integer,
+        ForeignKey("promo_groups.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
 
 
 class UserStatus(Enum):
@@ -53,9 +73,11 @@ class PromoCodeType(Enum):
 class PaymentMethod(Enum):
     TELEGRAM_STARS = "telegram_stars"
     TRIBUTE = "tribute"
-    YOOKASSA = "yookassa" 
+    YOOKASSA = "yookassa"
     CRYPTOBOT = "cryptobot"
-    MANUAL = "manual"  
+    MULENPAY = "mulenpay"
+    PAL24 = "pal24"
+    MANUAL = "manual"
 
 class YooKassaPayment(Base):
     __tablename__ = "yookassa_payments"
@@ -107,7 +129,7 @@ class YooKassaPayment(Base):
 
 class CryptoBotPayment(Base):
     __tablename__ = "cryptobot_payments"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
@@ -155,6 +177,111 @@ class CryptoBotPayment(Base):
         return f"<CryptoBotPayment(id={self.id}, invoice_id={self.invoice_id}, amount={self.amount} {self.asset}, status={self.status})>"
 
 
+class MulenPayPayment(Base):
+    __tablename__ = "mulenpay_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    mulen_payment_id = Column(Integer, nullable=True, index=True)
+    uuid = Column(String(255), unique=True, nullable=False, index=True)
+    amount_kopeks = Column(Integer, nullable=False)
+    currency = Column(String(10), nullable=False, default="RUB")
+    description = Column(Text, nullable=True)
+
+    status = Column(String(50), nullable=False, default="created")
+    is_paid = Column(Boolean, default=False)
+    paid_at = Column(DateTime, nullable=True)
+
+    payment_url = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
+    callback_payload = Column(JSON, nullable=True)
+
+    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
+
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    user = relationship("User", backref="mulenpay_payments")
+    transaction = relationship("Transaction", backref="mulenpay_payment")
+
+    @property
+    def amount_rubles(self) -> float:
+        return self.amount_kopeks / 100
+
+    def __repr__(self) -> str:  # pragma: no cover - debug helper
+        return (
+            "<MulenPayPayment(id={0}, mulen_id={1}, amount={2}₽, status={3})>".format(
+                self.id,
+                self.mulen_payment_id,
+                self.amount_rubles,
+                self.status,
+            )
+        )
+
+
+class Pal24Payment(Base):
+    __tablename__ = "pal24_payments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    bill_id = Column(String(255), unique=True, nullable=False, index=True)
+    order_id = Column(String(255), nullable=True, index=True)
+    amount_kopeks = Column(Integer, nullable=False)
+    currency = Column(String(10), nullable=False, default="RUB")
+    description = Column(Text, nullable=True)
+    type = Column(String(20), nullable=False, default="normal")
+
+    status = Column(String(50), nullable=False, default="NEW")
+    is_active = Column(Boolean, default=True)
+    is_paid = Column(Boolean, default=False)
+    paid_at = Column(DateTime, nullable=True)
+    last_status = Column(String(50), nullable=True)
+    last_status_checked_at = Column(DateTime, nullable=True)
+
+    link_url = Column(Text, nullable=True)
+    link_page_url = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
+    callback_payload = Column(JSON, nullable=True)
+
+    payment_id = Column(String(255), nullable=True, index=True)
+    payment_status = Column(String(50), nullable=True)
+    payment_method = Column(String(50), nullable=True)
+    balance_amount = Column(String(50), nullable=True)
+    balance_currency = Column(String(10), nullable=True)
+    payer_account = Column(String(255), nullable=True)
+
+    ttl = Column(Integer, nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
+    transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
+
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    user = relationship("User", backref="pal24_payments")
+    transaction = relationship("Transaction", backref="pal24_payment")
+
+    @property
+    def amount_rubles(self) -> float:
+        return self.amount_kopeks / 100
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status in {"NEW", "PROCESS"}
+
+    def __repr__(self) -> str:  # pragma: no cover - debug helper
+        return (
+            "<Pal24Payment(id={0}, bill_id={1}, amount={2}₽, status={3})>".format(
+                self.id,
+                self.bill_id,
+                self.amount_rubles,
+                self.status,
+            )
+        )
+
+
 class PromoGroup(Base):
     __tablename__ = "promo_groups"
 
@@ -163,13 +290,67 @@ class PromoGroup(Base):
     server_discount_percent = Column(Integer, nullable=False, default=0)
     traffic_discount_percent = Column(Integer, nullable=False, default=0)
     device_discount_percent = Column(Integer, nullable=False, default=0)
+    period_discounts = Column(JSON, nullable=True, default=dict)
+    auto_assign_total_spent_kopeks = Column(Integer, nullable=True, default=None)
+    apply_discounts_to_addons = Column(Boolean, nullable=False, default=True)
     is_default = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     users = relationship("User", back_populates="promo_group")
+    server_squads = relationship(
+        "ServerSquad",
+        secondary=server_squad_promo_groups,
+        back_populates="allowed_promo_groups",
+        lazy="selectin",
+    )
+
+    def _get_period_discounts_map(self) -> Dict[int, int]:
+        raw_discounts = self.period_discounts or {}
+
+        if isinstance(raw_discounts, dict):
+            items = raw_discounts.items()
+        else:
+            items = []
+
+        normalized: Dict[int, int] = {}
+
+        for key, value in items:
+            try:
+                period = int(key)
+                percent = int(value)
+            except (TypeError, ValueError):
+                continue
+
+            normalized[period] = max(0, min(100, percent))
+
+        return normalized
+
+    def _get_period_discount(self, period_days: Optional[int]) -> int:
+        if not period_days:
+            return 0
+
+        discounts = self._get_period_discounts_map()
+
+        if period_days in discounts:
+            return discounts[period_days]
+
+        if self.is_default:
+            try:
+                from app.config import settings
+
+                if settings.is_base_promo_group_period_discount_enabled():
+                    config_discounts = settings.get_base_promo_group_period_discounts()
+                    return config_discounts.get(period_days, 0)
+            except Exception:
+                return 0
+
+        return 0
 
     def get_discount_percent(self, category: str, period_days: Optional[int] = None) -> int:
+        if category == "period":
+            return max(0, min(100, self._get_period_discount(period_days)))
+
         mapping = {
             "servers": self.server_discount_percent,
             "traffic": self.traffic_discount_percent,
@@ -177,24 +358,12 @@ class PromoGroup(Base):
         }
         percent = mapping.get(category, 0)
 
-        if self.is_default and period_days is not None:
-            try:
-                from app.config import settings
-
-                if settings.is_base_promo_group_period_discount_enabled():
-                    discounts = settings.get_base_promo_group_period_discounts()
-                    if period_days in discounts:
-                        period_discount = discounts[period_days]
-                        percent = period_discount
-            except Exception:
-                pass
-
         return max(0, min(100, percent))
 
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
     username = Column(String(255), nullable=True)
@@ -216,7 +385,14 @@ class User(Base):
     subscription = relationship("Subscription", back_populates="user", uselist=False)
     transactions = relationship("Transaction", back_populates="user")
     referral_earnings = relationship("ReferralEarning", foreign_keys="ReferralEarning.user_id", back_populates="user")
+    discount_offers = relationship("DiscountOffer", back_populates="user")
+    promo_offer_logs = relationship("PromoOfferLog", back_populates="user")
     lifetime_used_traffic_bytes = Column(BigInteger, default=0)
+    auto_promo_group_assigned = Column(Boolean, nullable=False, default=False)
+    auto_promo_group_threshold_kopeks = Column(BigInteger, nullable=False, default=0)
+    promo_offer_discount_percent = Column(Integer, nullable=False, default=0)
+    promo_offer_discount_source = Column(String(100), nullable=True)
+    promo_offer_discount_expires_at = Column(DateTime, nullable=True)
     last_remnawave_sync = Column(DateTime, nullable=True)
     trojan_password = Column(String(255), nullable=True)
     vless_uuid = Column(String(255), nullable=True)
@@ -265,7 +441,8 @@ class Subscription(Base):
     traffic_used_gb = Column(Float, default=0.0)
 
     subscription_url = Column(String, nullable=True)
-    
+    subscription_crypto_link = Column(String, nullable=True)
+
     device_limit = Column(Integer, default=1)
     
     connected_squads = Column(JSON, default=list)
@@ -277,8 +454,10 @@ class Subscription(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
     remnawave_short_uuid = Column(String(255), nullable=True)
-    
+
     user = relationship("User", back_populates="subscription")
+    discount_offers = relationship("DiscountOffer", back_populates="subscription")
+    temporary_accesses = relationship("SubscriptionTemporaryAccess", back_populates="subscription")
     
     @property
     def is_active(self) -> bool:
@@ -397,8 +576,7 @@ class Subscription(Base):
         return 0.0
     
     def extend_subscription(self, days: int):
-        from datetime import timedelta, datetime
-    
+
         if self.end_date > datetime.utcnow():
             self.end_date = self.end_date + timedelta(days=days)
         else:
@@ -566,9 +744,9 @@ class Squad(Base):
 
 class ServiceRule(Base):
     __tablename__ = "service_rules"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    
+
     order = Column(Integer, default=0)
     title = Column(String(255), nullable=False)
     
@@ -582,9 +760,54 @@ class ServiceRule(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
+class PrivacyPolicy(Base):
+    __tablename__ = "privacy_policies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    language = Column(String(10), nullable=False, unique=True)
+    content = Column(Text, nullable=False)
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class PublicOffer(Base):
+    __tablename__ = "public_offers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    language = Column(String(10), nullable=False, unique=True)
+    content = Column(Text, nullable=False)
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class FaqSetting(Base):
+    __tablename__ = "faq_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    language = Column(String(10), nullable=False, unique=True)
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class FaqPage(Base):
+    __tablename__ = "faq_pages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    language = Column(String(10), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
 class SystemSetting(Base):
     __tablename__ = "system_settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(255), unique=True, nullable=False)
     value = Column(Text, nullable=True)
@@ -622,6 +845,90 @@ class SentNotification(Base):
     user = relationship("User", backref="sent_notifications")
     subscription = relationship("Subscription", backref="sent_notifications")
 
+
+class DiscountOffer(Base):
+    __tablename__ = "discount_offers"
+    __table_args__ = (
+        Index("ix_discount_offers_user_type", "user_id", "notification_type"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id", ondelete="SET NULL"), nullable=True)
+    notification_type = Column(String(50), nullable=False)
+    discount_percent = Column(Integer, nullable=False, default=0)
+    bonus_amount_kopeks = Column(Integer, nullable=False, default=0)
+    expires_at = Column(DateTime, nullable=False)
+    claimed_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    effect_type = Column(String(50), nullable=False, default="percent_discount")
+    extra_data = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    user = relationship("User", back_populates="discount_offers")
+    subscription = relationship("Subscription", back_populates="discount_offers")
+    logs = relationship("PromoOfferLog", back_populates="offer")
+
+
+class PromoOfferTemplate(Base):
+    __tablename__ = "promo_offer_templates"
+    __table_args__ = (
+        Index("ix_promo_offer_templates_type", "offer_type"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    offer_type = Column(String(50), nullable=False)
+    message_text = Column(Text, nullable=False)
+    button_text = Column(String(255), nullable=False)
+    valid_hours = Column(Integer, nullable=False, default=24)
+    discount_percent = Column(Integer, nullable=False, default=0)
+    bonus_amount_kopeks = Column(Integer, nullable=False, default=0)
+    active_discount_hours = Column(Integer, nullable=True)
+    test_duration_hours = Column(Integer, nullable=True)
+    test_squad_uuids = Column(JSON, default=list)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    creator = relationship("User")
+
+
+class SubscriptionTemporaryAccess(Base):
+    __tablename__ = "subscription_temporary_access"
+
+    id = Column(Integer, primary_key=True, index=True)
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id", ondelete="CASCADE"), nullable=False)
+    offer_id = Column(Integer, ForeignKey("discount_offers.id", ondelete="CASCADE"), nullable=False)
+    squad_uuid = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    deactivated_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    was_already_connected = Column(Boolean, default=False, nullable=False)
+
+    subscription = relationship("Subscription", back_populates="temporary_accesses")
+    offer = relationship("DiscountOffer")
+
+
+class PromoOfferLog(Base):
+    __tablename__ = "promo_offer_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    offer_id = Column(Integer, ForeignKey("discount_offers.id", ondelete="SET NULL"), nullable=True, index=True)
+    action = Column(String(50), nullable=False)
+    source = Column(String(100), nullable=True)
+    percent = Column(Integer, nullable=True)
+    effect_type = Column(String(50), nullable=True)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    user = relationship("User", back_populates="promo_offer_logs")
+    offer = relationship("DiscountOffer", back_populates="logs")
+
 class BroadcastHistory(Base):
     __tablename__ = "broadcast_history"
     
@@ -644,9 +951,9 @@ class BroadcastHistory(Base):
 
 class ServerSquad(Base):
     __tablename__ = "server_squads"
-    
+
     id = Column(Integer, primary_key=True, index=True)
-    
+
     squad_uuid = Column(String(255), unique=True, nullable=False, index=True)
     
     display_name = Column(String(255), nullable=False)
@@ -664,10 +971,17 @@ class ServerSquad(Base):
     sort_order = Column(Integer, default=0)
     
     max_users = Column(Integer, nullable=True) 
-    current_users = Column(Integer, default=0) 
-    
+    current_users = Column(Integer, default=0)
+
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    allowed_promo_groups = relationship(
+        "PromoGroup",
+        secondary=server_squad_promo_groups,
+        back_populates="server_squads",
+        lazy="selectin",
+    )
     
     @property
     def price_rubles(self) -> float:
@@ -702,6 +1016,23 @@ class SubscriptionServer(Base):
     
     subscription = relationship("Subscription", backref="subscription_servers")
     server_squad = relationship("ServerSquad", backref="subscription_servers")
+
+
+class SupportAuditLog(Base):
+    __tablename__ = "support_audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_telegram_id = Column(BigInteger, nullable=False)
+    is_moderator = Column(Boolean, default=False)
+    action = Column(String(50), nullable=False)  # close_ticket, block_user_timed, block_user_perm, unblock_user
+    ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="SET NULL"), nullable=True)
+    target_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    details = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    actor = relationship("User", foreign_keys=[actor_user_id])
+    ticket = relationship("Ticket", foreign_keys=[ticket_id])
 
 class UserMessage(Base):
     __tablename__ = "user_messages"
@@ -810,6 +1141,8 @@ class Ticket(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     closed_at = Column(DateTime, nullable=True)
+    # SLA reminders
+    last_sla_reminder_at = Column(DateTime, nullable=True)
     
     # Связи
     user = relationship("User", backref="tickets")
@@ -869,7 +1202,7 @@ class Ticket(Base):
 
 class TicketMessage(Base):
     __tablename__ = "ticket_messages"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -896,6 +1229,27 @@ class TicketMessage(Base):
     @property
     def is_admin_message(self) -> bool:
         return self.is_from_admin
-    
+
     def __repr__(self):
         return f"<TicketMessage(id={self.id}, ticket_id={self.ticket_id}, is_admin={self.is_from_admin}, text='{self.message_text[:30]}...')>"
+
+
+class WebApiToken(Base):
+    __tablename__ = "web_api_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    token_hash = Column(String(128), nullable=False, unique=True, index=True)
+    token_prefix = Column(String(32), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    expires_at = Column(DateTime, nullable=True)
+    last_used_at = Column(DateTime, nullable=True)
+    last_used_ip = Column(String(64), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(String(255), nullable=True)
+
+    def __repr__(self) -> str:
+        status = "active" if self.is_active else "revoked"
+        return f"<WebApiToken id={self.id} name='{self.name}' status={status}>"

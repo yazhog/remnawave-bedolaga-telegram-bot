@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from datetime import datetime
 from typing import Tuple
 import logging
 
@@ -50,6 +49,13 @@ def apply_percentage_discount(amount: int, percent: int) -> Tuple[int, int]:
     clamped_percent = max(0, min(100, percent))
     discount_value = amount * clamped_percent // 100
     discounted_amount = amount - discount_value
+
+    # Round the discounted price up to the nearest full ruble (100 kopeks)
+    # to avoid undercharging users because of fractional kopeks.
+    if discount_value >= 100 and discounted_amount % 100:
+        discounted_amount += 100 - (discounted_amount % 100)
+        discounted_amount = min(discounted_amount, amount)
+        discount_value = amount - discounted_amount
 
     logger.debug(
         "Применена скидка %s%%: %s → %s (скидка %s)",
