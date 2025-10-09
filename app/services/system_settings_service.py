@@ -56,8 +56,15 @@ class ChoiceOption:
     description: Optional[str] = None
 
 
+class ReadOnlySettingError(RuntimeError):
+    """Исключение, выбрасываемое при попытке изменить настройку только для чтения."""
+
+
 class BotConfigurationService:
     EXCLUDED_KEYS: set[str] = {"BOT_TOKEN", "ADMIN_IDS"}
+
+    READ_ONLY_KEYS: set[str] = {"EXTERNAL_ADMIN_TOKEN", "EXTERNAL_ADMIN_TOKEN_BOT_ID"}
+    PLAIN_TEXT_KEYS: set[str] = {"EXTERNAL_ADMIN_TOKEN", "EXTERNAL_ADMIN_TOKEN_BOT_ID"}
 
     CATEGORY_TITLES: Dict[str, str] = {
         "CORE": "🤖 Основные настройки",
@@ -71,6 +78,7 @@ class BotConfigurationService:
         "TRIBUTE": "🎁 Tribute",
         "MULENPAY": "💰 MulenPay",
         "PAL24": "🏦 PAL24 / PayPalych",
+        "EXTERNAL_ADMIN": "🛡️ Внешняя админка",
         "SUBSCRIPTIONS_CORE": "📅 Подписки и лимиты",
         "PERIODS": "📆 Периоды подписок",
         "SUBSCRIPTION_PRICES": "💵 Стоимость тарифов",
@@ -104,6 +112,7 @@ class BotConfigurationService:
         "WEBHOOK": "🌐 Webhook",
         "LOG": "📝 Логирование",
         "DEBUG": "🧪 Режим разработки",
+        "MODERATION": "🛡️ Модерация и фильтры",
     }
 
     CATEGORY_DESCRIPTIONS: Dict[str, str] = {
@@ -118,6 +127,7 @@ class BotConfigurationService:
         "PAL24": "PAL24 / PayPalych подключения и лимиты.",
         "TRIBUTE": "Tribute и донат-сервисы.",
         "TELEGRAM": "Telegram Stars и их стоимость.",
+        "EXTERNAL_ADMIN": "Токен внешней админки для проверки запросов.",
         "SUBSCRIPTIONS_CORE": "Лимиты устройств, трафика и базовые цены подписок.",
         "PERIODS": "Доступные периоды подписок и продлений.",
         "SUBSCRIPTION_PRICES": "Стоимость подписок по периодам в копейках.",
@@ -151,6 +161,7 @@ class BotConfigurationService:
         "WEBHOOK": "Пути и секреты вебхуков.",
         "LOG": "Уровни логирования и ротация.",
         "DEBUG": "Отладочные функции и безопасный режим.",
+        "MODERATION": "Настройки фильтров отображаемых имен и защиты от фишинга.",
     }
 
     CATEGORY_KEY_OVERRIDES: Dict[str, str] = {
@@ -184,6 +195,7 @@ class BotConfigurationService:
         "BASE_PROMO_GROUP_PERIOD_DISCOUNTS_ENABLED": "SUBSCRIPTIONS_CORE",
         "BASE_PROMO_GROUP_PERIOD_DISCOUNTS": "SUBSCRIPTIONS_CORE",
         "REFERRED_USER_REWARD": "REFERRAL",
+        "DEFAULT_AUTOPAY_ENABLED": "AUTOPAY",
         "DEFAULT_AUTOPAY_DAYS_BEFORE": "AUTOPAY",
         "MIN_BALANCE_FOR_AUTOPAY_KOPEKS": "AUTOPAY",
         "TRIAL_WARNING_HOURS": "TRIAL",
@@ -255,6 +267,7 @@ class BotConfigurationService:
         "MULENPAY_": "MULENPAY",
         "PAL24_": "PAL24",
         "PAYMENT_": "PAYMENT",
+        "EXTERNAL_ADMIN_": "EXTERNAL_ADMIN",
         "CONNECT_BUTTON_HAPP": "HAPP",
         "HAPP_": "HAPP",
         "SKIP_": "SKIP",
@@ -269,6 +282,7 @@ class BotConfigurationService:
         "LOG_": "LOG",
         "WEB_API_": "WEB_API",
         "DEBUG": "DEBUG",
+        "DISPLAY_NAME_": "MODERATION",
     }
 
     CHOICES: Dict[str, List[ChoiceOption]] = {
@@ -387,12 +401,33 @@ class BotConfigurationService:
             "warning": "Не забудьте отключить после завершения работ, иначе бот останется недоступен.",
             "dependencies": "MAINTENANCE_MESSAGE, MAINTENANCE_CHECK_INTERVAL",
         },
+        "DISPLAY_NAME_BANNED_KEYWORDS": {
+            "description": "Список слов и фрагментов, при наличии которых в отображаемом имени пользователь будет заблокирован.",
+            "format": "Перечислите ключевые слова через запятую или с новой строки.",
+            "example": "support, security, служебн",
+            "warning": "Слишком агрессивные фильтры могут блокировать добросовестных пользователей.",
+            "dependencies": "Фильтр отображаемых имен",
+        },
         "REMNAWAVE_API_URL": {
             "description": "Базовый адрес панели RemnaWave, с которой синхронизируется бот.",
             "format": "Полный URL вида https://panel.example.com.",
             "example": "https://panel.remnawave.net",
             "warning": "Недоступный адрес приведет к ошибкам при управлении VPN-учетками.",
             "dependencies": "REMNAWAVE_API_KEY или REMNAWAVE_USERNAME/REMNAWAVE_PASSWORD",
+        },
+        "EXTERNAL_ADMIN_TOKEN": {
+            "description": "Приватный токен, который использует внешняя админка для проверки запросов.",
+            "format": "Значение генерируется автоматически из username бота и его токена и доступно только для чтения.",
+            "example": "Генерируется автоматически",
+            "warning": "Токен обновится при смене username или токена бота.",
+            "dependencies": "Username телеграм-бота, токен бота",
+        },
+        "EXTERNAL_ADMIN_TOKEN_BOT_ID": {
+            "description": "Идентификатор телеграм-бота, с которым связан токен внешней админки.",
+            "format": "Проставляется автоматически после первого запуска и не редактируется вручную.",
+            "example": "123456789",
+            "warning": "Несовпадение ID блокирует обновление токена, предотвращая его подмену на другом боте.",
+            "dependencies": "Результат вызова getMe() в Telegram Bot API",
         },
     }
 
@@ -404,6 +439,10 @@ class BotConfigurationService:
     def is_toggle(cls, key: str) -> bool:
         definition = cls.get_definition(key)
         return definition.python_type is bool
+
+    @classmethod
+    def is_read_only(cls, key: str) -> bool:
+        return key in cls.READ_ONLY_KEYS
 
     @classmethod
     def _format_numeric_with_unit(cls, key: str, value: Union[int, float]) -> Optional[str]:
@@ -455,6 +494,8 @@ class BotConfigurationService:
             cleaned = value.strip()
             if not cleaned:
                 return "—"
+            if key in cls.PLAIN_TEXT_KEYS:
+                return cleaned
             if any(keyword in key.upper() for keyword in ("TOKEN", "SECRET", "PASSWORD", "KEY")):
                 return "••••••••"
             items = cls._split_comma_values(cleaned)
@@ -860,7 +901,17 @@ class BotConfigurationService:
         return parsed_value
 
     @classmethod
-    async def set_value(cls, db: AsyncSession, key: str, value: Any) -> None:
+    async def set_value(
+        cls,
+        db: AsyncSession,
+        key: str,
+        value: Any,
+        *,
+        force: bool = False,
+    ) -> None:
+        if cls.is_read_only(key) and not force:
+            raise ReadOnlySettingError(f"Setting {key} is read-only")
+
         raw_value = cls.serialize_value(key, value)
         await upsert_system_setting(db, key, raw_value)
         cls._overrides_raw[key] = raw_value
@@ -870,7 +921,16 @@ class BotConfigurationService:
             await cls._sync_default_web_api_token()
 
     @classmethod
-    async def reset_value(cls, db: AsyncSession, key: str) -> None:
+    async def reset_value(
+        cls,
+        db: AsyncSession,
+        key: str,
+        *,
+        force: bool = False,
+    ) -> None:
+        if cls.is_read_only(key) and not force:
+            raise ReadOnlySettingError(f"Setting {key} is read-only")
+
         await delete_system_setting(db, key)
         cls._overrides_raw.pop(key, None)
         original = cls.get_original_value(key)
@@ -925,6 +985,7 @@ class BotConfigurationService:
             "category_key": definition.category_key,
             "category_label": definition.category_label,
             "has_override": has_override,
+            "is_read_only": cls.is_read_only(key),
         }
 
 

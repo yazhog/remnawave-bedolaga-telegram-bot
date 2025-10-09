@@ -121,6 +121,7 @@ def get_main_menu_keyboard(
     show_resume_checkout: bool = False,
     *,
     is_moderator: bool = False,
+    custom_buttons: Optional[list[InlineKeyboardButton]] = None,
 ) -> InlineKeyboardMarkup:
     texts = get_texts(language)
     
@@ -230,6 +231,11 @@ def get_main_menu_keyboard(
             )
         ])
 
+    if custom_buttons:
+        for button in custom_buttons:
+            if isinstance(button, InlineKeyboardButton):
+                keyboard.append([button])
+
     keyboard.extend([
         [
             InlineKeyboardButton(text=texts.MENU_PROMOCODE, callback_data="menu_promocode"),
@@ -285,6 +291,7 @@ def get_info_menu_keyboard(
     show_privacy_policy: bool = False,
     show_public_offer: bool = False,
     show_faq: bool = False,
+    show_promo_groups: bool = False,
 ) -> InlineKeyboardMarkup:
     texts = get_texts(language)
 
@@ -295,6 +302,14 @@ def get_info_menu_keyboard(
             InlineKeyboardButton(
                 text=texts.t("MENU_FAQ", "❓ FAQ"),
                 callback_data="menu_faq",
+            )
+        ])
+
+    if show_promo_groups:
+        buttons.append([
+            InlineKeyboardButton(
+                text=texts.t("MENU_PROMO_GROUPS_INFO", "🎯 Промогруппы"),
+                callback_data="menu_info_promo_groups",
             )
         ])
 
@@ -1695,14 +1710,25 @@ def get_extend_subscription_keyboard_with_prices(language: str, prices: dict) ->
     available_periods = settings.get_available_renewal_periods()
 
     for days in available_periods:
-        if days in prices:
-            period_display = format_period_description(days, language)
-            keyboard.append([
-                InlineKeyboardButton(
-                    text=f"📅 {period_display} - {texts.format_price(prices[days])}",
-                    callback_data=f"extend_period_{days}"
-                )
-            ])
+        if days not in prices:
+            continue
+
+        price_info = prices[days]
+
+        if isinstance(price_info, dict):
+            final_price = price_info.get("final")
+            if final_price is None:
+                final_price = price_info.get("original", 0)
+        else:
+            final_price = price_info
+
+        period_display = format_period_description(days, language)
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"📅 {period_display} - {texts.format_price(final_price)}",
+                callback_data=f"extend_period_{days}"
+            )
+        ])
 
     keyboard.append([
         InlineKeyboardButton(text=texts.BACK, callback_data="menu_subscription")

@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 import os
 import re
@@ -10,9 +12,16 @@ from pydantic import field_validator, Field
 from pathlib import Path
 
 
+DEFAULT_DISPLAY_NAME_BANNED_KEYWORDS = [
+    "tme",
+    "joingroup",
+]
+
+
 class Settings(BaseSettings):
-    
+
     BOT_TOKEN: str
+    BOT_USERNAME: Optional[str] = None
     ADMIN_IDS: str = ""
     SUPPORT_USERNAME: str = "@support"
     SUPPORT_MENU_ENABLED: bool = True
@@ -130,8 +139,9 @@ class Settings(BaseSettings):
     REFERRED_USER_REWARD: int = 0 
     
     AUTOPAY_WARNING_DAYS: str = "3,1"
-    
-    DEFAULT_AUTOPAY_DAYS_BEFORE: int = 3 
+
+    DEFAULT_AUTOPAY_ENABLED: bool = False
+    DEFAULT_AUTOPAY_DAYS_BEFORE: int = 3
     MIN_BALANCE_FOR_AUTOPAY_KOPEKS: int = 10000  
     
     MONITORING_INTERVAL: int = 60
@@ -194,6 +204,10 @@ class Settings(BaseSettings):
     MULENPAY_DESCRIPTION: str = "Пополнение баланса"
     MULENPAY_LANGUAGE: str = "ru"
     MULENPAY_VAT_CODE: int = 0
+
+    DISPLAY_NAME_BANNED_KEYWORDS: str = "\n".join(
+        DEFAULT_DISPLAY_NAME_BANNED_KEYWORDS
+    )
     MULENPAY_PAYMENT_SUBJECT: int = 4
     MULENPAY_PAYMENT_MODE: int = 4
     MULENPAY_MIN_AMOUNT_KOPEKS: int = 10000
@@ -275,6 +289,9 @@ class Settings(BaseSettings):
     BACKUP_SEND_ENABLED: bool = False
     BACKUP_SEND_CHAT_ID: Optional[str] = None
     BACKUP_SEND_TOPIC_ID: Optional[int] = None
+
+    EXTERNAL_ADMIN_TOKEN: Optional[str] = None
+    EXTERNAL_ADMIN_TOKEN_BOT_ID: Optional[int] = None
 
     @field_validator('SERVER_STATUS_MODE', mode='before')
     @classmethod
@@ -448,6 +465,29 @@ class Settings(BaseSettings):
 
         description = re.sub(r'\s+', ' ', description).strip()
         return description
+
+    def get_display_name_banned_keywords(self) -> List[str]:
+        raw_value = self.DISPLAY_NAME_BANNED_KEYWORDS
+        if raw_value is None:
+            return []
+
+        if isinstance(raw_value, str):
+            candidates = re.split(r"[\n,]+", raw_value)
+        else:
+            candidates = list(raw_value)
+
+        unique: List[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            normalized = str(candidate).strip().lower()
+            if not normalized:
+                continue
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique.append(normalized)
+
+        return unique
     
     def get_autopay_warning_days(self) -> List[int]:
         try:
@@ -459,6 +499,15 @@ class Settings(BaseSettings):
             return [3, 1]
         except (ValueError, AttributeError):
             return [3, 1]
+
+    def is_autopay_enabled_by_default(self) -> bool:
+        value = getattr(self, "DEFAULT_AUTOPAY_ENABLED", True)
+
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            return normalized in {"1", "true", "yes", "on"}
+
+        return bool(value)
     
     def get_available_languages(self) -> List[str]:
         try:
@@ -475,8 +524,14 @@ class Settings(BaseSettings):
         return bool(getattr(self, "LANGUAGE_SELECTION_ENABLED", True))
 
     def format_price(self, price_kopeks: int) -> str:
-        rubles = price_kopeks // 100
-        return f"{rubles} ₽"
+        sign = "-" if price_kopeks < 0 else ""
+        rubles, kopeks = divmod(abs(price_kopeks), 100)
+
+        if kopeks:
+            value = f"{sign}{rubles}.{kopeks:02d}".rstrip("0").rstrip(".")
+            return f"{value} ₽"
+
+        return f"{sign}{rubles} ₽"
 
     def get_reports_chat_id(self) -> Optional[str]:
         if self.ADMIN_REPORTS_CHAT_ID:
@@ -512,7 +567,14 @@ class Settings(BaseSettings):
     
     def get_trial_warning_hours(self) -> int:
         return self.TRIAL_WARNING_HOURS
-    
+
+    def get_bot_username(self) -> Optional[str]:
+        username = getattr(self, "BOT_USERNAME", None)
+        if not username:
+            return None
+        normalized = str(username).strip().lstrip("@")
+        return normalized or None
+
     def is_notifications_enabled(self) -> bool:
         return self.ENABLE_NOTIFICATIONS
     
@@ -556,6 +618,37 @@ class Settings(BaseSettings):
     
     def get_app_config_cache_ttl(self) -> int:
         return self.APP_CONFIG_CACHE_TTL
+
+    def build_external_admin_token(self, bot_username: str) -> str:
+        """Генерирует детерминированный и криптографически стойкий токен внешней админки."""
+        normalized = (bot_username or "").strip().lstrip("@").lower()
+        if not normalized:
+            raise ValueError("Bot username is required to build external admin token")
+
+        secret = (self.BOT_TOKEN or "").strip()
+        if not secret:
+            raise ValueError("Bot token is required to build external admin token")
+
+        digest = hmac.new(
+            key=secret.encode("utf-8"),
+            msg=f"remnawave.external_admin::{normalized}".encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+        return digest[:48]
+
+    def get_external_admin_token(self) -> Optional[str]:
+        token = (self.EXTERNAL_ADMIN_TOKEN or "").strip()
+        return token or None
+
+    def get_external_admin_bot_id(self) -> Optional[int]:
+        try:
+            return int(self.EXTERNAL_ADMIN_TOKEN_BOT_ID) if self.EXTERNAL_ADMIN_TOKEN_BOT_ID else None
+        except (TypeError, ValueError):  # pragma: no cover - защитная ветка для некорректных значений
+            logging.getLogger(__name__).warning(
+                "Некорректный идентификатор бота для внешней админки: %s",
+                self.EXTERNAL_ADMIN_TOKEN_BOT_ID,
+            )
+            return None
     
     def is_traffic_selectable(self) -> bool:
         return self.TRAFFIC_SELECTION_MODE.lower() == "selectable"
@@ -791,14 +884,42 @@ class Settings(BaseSettings):
         return (self.BACKUP_SEND_ENABLED and
                 self.get_backup_send_chat_id() is not None)
 
+    def get_referred_user_reward_kopeks(self) -> int:
+        """Return the referred user reward normalized to kopeks.
+
+        Historically the value was stored in kopeks, however some
+        installations provide it in rubles. To keep backward compatibility we
+        treat any value greater than or equal to one thousand as already being
+        in kopeks (≥ 10 ₽). Smaller positive values are assumed to be provided
+        in rubles and therefore converted to kopeks.
+        """
+
+        raw_value = getattr(self, "REFERRED_USER_REWARD", 0)
+
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            return 0
+
+        if value <= 0:
+            return 0
+
+        if value >= 1000:
+            return value
+
+        return value * 100
+
     def get_referral_settings(self) -> Dict:
+        referred_reward_kopeks = self.get_referred_user_reward_kopeks()
+
         return {
             "minimum_topup_kopeks": self.REFERRAL_MINIMUM_TOPUP_KOPEKS,
             "first_topup_bonus_kopeks": self.REFERRAL_FIRST_TOPUP_BONUS_KOPEKS,
             "inviter_bonus_kopeks": self.REFERRAL_INVITER_BONUS_KOPEKS,
             "commission_percent": self.REFERRAL_COMMISSION_PERCENT,
             "notifications_enabled": self.REFERRAL_NOTIFICATIONS_ENABLED,
-            "referred_user_reward": self.REFERRED_USER_REWARD
+            "referred_user_reward": referred_reward_kopeks,
+            "referred_user_reward_kopeks": referred_reward_kopeks,
         }
     
     def is_referral_notifications_enabled(self) -> bool:
