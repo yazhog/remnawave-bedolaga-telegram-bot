@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class MiniAppBranding(BaseModel):
@@ -253,6 +253,72 @@ class MiniAppReferralInfo(BaseModel):
     referrals: Optional[MiniAppReferralList] = None
 
 
+class MiniAppPaymentMethodsRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+
+
+class MiniAppPaymentMethod(BaseModel):
+    id: str
+    icon: Optional[str] = None
+    requires_amount: bool = False
+    currency: str = "RUB"
+    min_amount_kopeks: Optional[int] = None
+    max_amount_kopeks: Optional[int] = None
+    amount_step_kopeks: Optional[int] = None
+
+
+class MiniAppPaymentMethodsResponse(BaseModel):
+    methods: List[MiniAppPaymentMethod] = Field(default_factory=list)
+
+
+class MiniAppPaymentCreateRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+    method: str
+    amount_rubles: Optional[float] = Field(default=None, alias="amountRubles")
+    amount_kopeks: Optional[int] = Field(default=None, alias="amountKopeks")
+    payment_option: Optional[str] = Field(default=None, alias="option")
+
+
+class MiniAppPaymentCreateResponse(BaseModel):
+    success: bool = True
+    method: str
+    payment_url: Optional[str] = None
+    amount_kopeks: Optional[int] = None
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MiniAppPaymentStatusQuery(BaseModel):
+    method: str
+    local_payment_id: Optional[int] = Field(default=None, alias="localPaymentId")
+    invoice_id: Optional[str] = Field(default=None, alias="invoiceId")
+    payment_id: Optional[str] = Field(default=None, alias="paymentId")
+    payload: Optional[str] = None
+    amount_kopeks: Optional[int] = Field(default=None, alias="amountKopeks")
+    started_at: Optional[str] = Field(default=None, alias="startedAt")
+
+
+class MiniAppPaymentStatusRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+    payments: List[MiniAppPaymentStatusQuery] = Field(default_factory=list)
+
+
+class MiniAppPaymentStatusResult(BaseModel):
+    method: str
+    status: str
+    is_paid: bool = False
+    amount_kopeks: Optional[int] = None
+    currency: Optional[str] = None
+    completed_at: Optional[datetime] = None
+    transaction_id: Optional[int] = None
+    external_id: Optional[str] = None
+    message: Optional[str] = None
+    extra: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MiniAppPaymentStatusResponse(BaseModel):
+    results: List[MiniAppPaymentStatusResult] = Field(default_factory=list)
+
+
 class MiniAppSubscriptionResponse(BaseModel):
     success: bool = True
     subscription_id: int
@@ -287,4 +353,174 @@ class MiniAppSubscriptionResponse(BaseModel):
     faq: Optional[MiniAppFaq] = None
     legal_documents: Optional[MiniAppLegalDocuments] = None
     referral: Optional[MiniAppReferralInfo] = None
+
+
+class MiniAppSubscriptionServerOption(BaseModel):
+    uuid: str
+    name: Optional[str] = None
+    price_kopeks: Optional[int] = None
+    price_label: Optional[str] = None
+    discount_percent: Optional[int] = None
+    is_connected: bool = False
+    is_available: bool = True
+    disabled_reason: Optional[str] = None
+
+
+class MiniAppSubscriptionTrafficOption(BaseModel):
+    value: Optional[int] = None
+    label: Optional[str] = None
+    price_kopeks: Optional[int] = None
+    price_label: Optional[str] = None
+    is_current: bool = False
+    is_available: bool = True
+    description: Optional[str] = None
+
+
+class MiniAppSubscriptionDeviceOption(BaseModel):
+    value: int
+    label: Optional[str] = None
+    price_kopeks: Optional[int] = None
+    price_label: Optional[str] = None
+
+
+class MiniAppSubscriptionCurrentSettings(BaseModel):
+    servers: List[MiniAppConnectedServer] = Field(default_factory=list)
+    traffic_limit_gb: Optional[int] = None
+    traffic_limit_label: Optional[str] = None
+    device_limit: int = 0
+
+
+class MiniAppSubscriptionServersSettings(BaseModel):
+    available: List[MiniAppSubscriptionServerOption] = Field(default_factory=list)
+    min: int = 0
+    max: int = 0
+    can_update: bool = True
+    hint: Optional[str] = None
+
+
+class MiniAppSubscriptionTrafficSettings(BaseModel):
+    options: List[MiniAppSubscriptionTrafficOption] = Field(default_factory=list)
+    can_update: bool = True
+    current_value: Optional[int] = None
+
+
+class MiniAppSubscriptionDevicesSettings(BaseModel):
+    options: List[MiniAppSubscriptionDeviceOption] = Field(default_factory=list)
+    can_update: bool = True
+    min: int = 0
+    max: int = 0
+    step: int = 1
+    current: int = 0
+    price_kopeks: Optional[int] = None
+    price_label: Optional[str] = None
+
+
+class MiniAppSubscriptionBillingContext(BaseModel):
+    months_remaining: int = 1
+    period_hint_days: Optional[int] = None
+    renews_at: Optional[datetime] = None
+
+
+class MiniAppSubscriptionSettings(BaseModel):
+    subscription_id: int
+    currency: str = "RUB"
+    current: MiniAppSubscriptionCurrentSettings
+    servers: MiniAppSubscriptionServersSettings
+    traffic: MiniAppSubscriptionTrafficSettings
+    devices: MiniAppSubscriptionDevicesSettings
+    billing: Optional[MiniAppSubscriptionBillingContext] = None
+
+
+class MiniAppSubscriptionSettingsResponse(BaseModel):
+    success: bool = True
+    settings: MiniAppSubscriptionSettings
+
+
+class MiniAppSubscriptionSettingsRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+    subscription_id: Optional[int] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _populate_aliases(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            if "subscriptionId" in values and "subscription_id" not in values:
+                values["subscription_id"] = values["subscriptionId"]
+        return values
+
+
+class MiniAppSubscriptionServersUpdateRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+    subscription_id: Optional[int] = None
+    servers: Optional[List[str]] = None
+    squads: Optional[List[str]] = None
+    server_uuids: Optional[List[str]] = None
+    squad_uuids: Optional[List[str]] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _populate_aliases(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            alias_map = {
+                "subscriptionId": "subscription_id",
+                "serverUuids": "server_uuids",
+                "squadUuids": "squad_uuids",
+            }
+            for alias, target in alias_map.items():
+                if alias in values and target not in values:
+                    values[target] = values[alias]
+        return values
+
+
+class MiniAppSubscriptionTrafficUpdateRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+    subscription_id: Optional[int] = None
+    traffic: Optional[int] = None
+    traffic_gb: Optional[int] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _populate_aliases(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            alias_map = {
+                "subscriptionId": "subscription_id",
+                "trafficGb": "traffic_gb",
+            }
+            for alias, target in alias_map.items():
+                if alias in values and target not in values:
+                    values[target] = values[alias]
+        return values
+
+
+class MiniAppSubscriptionDevicesUpdateRequest(BaseModel):
+    init_data: str = Field(..., alias="initData")
+    subscription_id: Optional[int] = None
+    devices: Optional[int] = None
+    device_limit: Optional[int] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _populate_aliases(cls, values: Any) -> Any:
+        if isinstance(values, dict):
+            alias_map = {
+                "subscriptionId": "subscription_id",
+                "deviceLimit": "device_limit",
+            }
+            for alias, target in alias_map.items():
+                if alias in values and target not in values:
+                    values[target] = values[alias]
+        return values
+
+
+class MiniAppSubscriptionUpdateResponse(BaseModel):
+    success: bool = True
+    message: Optional[str] = None
 

@@ -78,6 +78,10 @@
             line-height: 1.6;
         }
 
+        body.modal-open {
+            overflow: hidden;
+        }
+
         .container {
             max-width: 480px;
             margin: 0 auto;
@@ -396,6 +400,309 @@
             max-height: 2000px;
             opacity: 1;
             padding: 0 16px 16px;
+        }
+
+        .subscription-settings-card {
+            position: relative;
+        }
+
+        .subscription-settings-summary {
+            margin-left: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .subscription-settings-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(var(--primary-rgb), 0.12);
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .subscription-settings-chip span {
+            color: inherit;
+        }
+
+        .subscription-settings-content {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding-top: 12px;
+        }
+
+        .subscription-settings-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .subscription-settings-section:last-child {
+            border-bottom: none;
+        }
+
+        .subscription-settings-section-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .subscription-settings-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .subscription-settings-section-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        .subscription-settings-section-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .subscription-settings-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .subscription-settings-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 140px;
+        }
+
+        .subscription-settings-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 0;
+        }
+
+        .subscription-settings-toggle:hover:not(.disabled) {
+            border-color: rgba(var(--primary-rgb), 0.5);
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        .subscription-settings-toggle.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.1), rgba(var(--primary-rgb), 0.02));
+            box-shadow: var(--shadow-sm);
+        }
+
+        .subscription-settings-toggle.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .subscription-settings-toggle-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .subscription-settings-toggle-title {
+            font-weight: 700;
+            font-size: 14px;
+            color: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .subscription-settings-toggle-meta {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .subscription-settings-toggle.active .subscription-settings-toggle-meta {
+            color: inherit;
+        }
+
+        .subscription-settings-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .subscription-settings-apply {
+            padding: 12px 18px;
+            border-radius: var(--radius);
+            border: none;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        }
+
+        .subscription-settings-apply:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .subscription-settings-apply:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .subscription-settings-inline-hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .subscription-settings-loading {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 8px 0 12px;
+        }
+
+        .subscription-settings-loading-line {
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(var(--primary-rgb), 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .subscription-settings-loading-line::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(var(--primary-rgb), 0.2), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        .subscription-settings-error {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 0;
+            color: var(--danger);
+            font-size: 14px;
+        }
+
+        .subscription-settings-retry {
+            align-self: flex-start;
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(var(--danger-rgb, 239, 68, 68), 0.4);
+            background: transparent;
+            color: var(--danger);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .subscription-settings-retry:hover {
+            background: rgba(var(--danger-rgb, 239, 68, 68), 0.1);
+            transform: translateY(-1px);
+        }
+
+        .subscription-settings-stepper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .subscription-settings-stepper button {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .subscription-settings-stepper button:hover:not(:disabled) {
+            border-color: rgba(var(--primary-rgb), 0.5);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .subscription-settings-stepper button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .subscription-settings-stepper-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .subscription-settings-price-note {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .subscription-settings-disabled-note {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .subscription-settings-empty {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 6px 0;
+        }
+
+        .subscription-settings-status-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        :root[data-theme="dark"] .subscription-settings-toggle {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        :root[data-theme="dark"] .subscription-settings-chip {
+            background: rgba(var(--primary-rgb), 0.22);
+            color: #fff;
         }
 
         .promo-offers {
@@ -1060,6 +1367,9 @@
         .balance-content {
             padding: 20px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .balance-amount {
@@ -1078,6 +1388,353 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        .balance-actions {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .topup-button {
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            border: none;
+            background: var(--primary);
+            color: var(--tg-theme-button-text-color);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .topup-button:hover {
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        .topup-button:active {
+            transform: scale(0.98);
+        }
+
+        .topup-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-backdrop.hidden {
+            display: none;
+        }
+
+        .modal {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .modal-header {
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .modal-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .payment-methods-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .payment-option-group {
+            margin-top: 16px;
+        }
+
+        .payment-option-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .payment-option-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .payment-option-button {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background: var(--bg-primary);
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+
+        .payment-option-button:hover {
+            border-color: rgba(var(--primary-rgb), 0.4);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .payment-option-button.active {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.08);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .payment-option-icon {
+            font-size: 20px;
+        }
+
+        .payment-option-text {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            text-align: left;
+        }
+
+        .payment-option-label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .payment-option-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .payment-method-card {
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            background: var(--bg-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .payment-method-card:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+            border-color: var(--primary);
+        }
+
+        .payment-method-card:active {
+            transform: scale(0.99);
+        }
+
+        .payment-method-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .payment-method-icon {
+            font-size: 26px;
+        }
+
+        .payment-method-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .payment-method-label {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .payment-method-description {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .amount-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .amount-input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            border: 2px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 600;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .amount-hint {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .amount-hint.warning {
+            color: var(--warning);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-button {
+            flex: 1;
+            padding: 12px;
+            border-radius: var(--radius);
+            border: none;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .modal-button.primary {
+            background: var(--primary);
+            color: var(--tg-theme-button-text-color);
+        }
+
+        .modal-button.secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+
+        .modal-button:hover:not(:disabled) {
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        .modal-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .modal-error {
+            font-size: 13px;
+            color: var(--danger);
+            text-align: center;
+        }
+
+        .payment-summary {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .payment-status {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(var(--primary-rgb), 0.2);
+            background: rgba(var(--primary-rgb), 0.06);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .payment-status.success {
+            border-color: rgba(16, 185, 129, 0.35);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .payment-status.error {
+            border-color: rgba(var(--danger-rgb), 0.35);
+            background: rgba(var(--danger-rgb), 0.1);
+        }
+
+        .payment-status-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .payment-status-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(var(--primary-rgb), 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .payment-status-content {
+            flex: 1;
+        }
+
+        .payment-status-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .payment-status-description {
+            margin-top: 4px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .payment-summary-amount {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
         }
 
         .promo-code-card {
@@ -2568,6 +3225,24 @@
             border-color: rgba(148, 163, 184, 0.25);
         }
 
+        :root[data-theme="dark"] .modal {
+            background: rgba(15, 23, 42, 0.96);
+        }
+
+        :root[data-theme="dark"] .payment-method-card {
+            background: rgba(15, 23, 42, 0.85);
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        :root[data-theme="dark"] .amount-input {
+            background: rgba(15, 23, 42, 0.85);
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        :root[data-theme="dark"] .modal-button.secondary {
+            border-color: rgba(148, 163, 184, 0.35);
+        }
+
         :root[data-theme="dark"] .promo-code-input-group {
             background: rgba(15, 23, 42, 0.85);
             border-color: rgba(148, 163, 184, 0.35);
@@ -2733,6 +3408,88 @@
                 </div>
             </div>
 
+            <!-- Subscription Settings -->
+            <div class="card expandable subscription-settings-card hidden" id="subscriptionSettingsCard">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg class="card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 110 4 2 2 0 010-4zm6 2a2 2 0 110 4 2 2 0 010-4zM6 8a2 2 0 110 4 2 2 0 010-4zm12 6a2 2 0 110 4 2 2 0 010-4zm-6 2a2 2 0 110 4 2 2 0 010-4zm-6-2a2 2 0 110 4 2 2 0 010-4zm6-4v8"/>
+                        </svg>
+                        <span data-i18n="subscription_settings.title">Настройка подписки</span>
+                    </div>
+                    <div class="subscription-settings-summary" id="subscriptionSettingsSummary"></div>
+                    <svg class="expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="subscription-settings-content" id="subscriptionSettingsContent">
+                        <div class="subscription-settings-loading" id="subscriptionSettingsLoading">
+                            <div class="subscription-settings-loading-line"></div>
+                            <div class="subscription-settings-loading-line" style="width: 70%;"></div>
+                            <div class="subscription-settings-loading-line" style="width: 55%;"></div>
+                        </div>
+                        <div class="subscription-settings-status-text hidden" id="subscriptionSettingsStatus"></div>
+                        <div class="subscription-settings-section" id="subscriptionSettingsServersSection">
+                            <div class="subscription-settings-section-header">
+                                <div>
+                                    <div class="subscription-settings-section-title" data-i18n="subscription_settings.servers.title">Серверы</div>
+                                    <div class="subscription-settings-section-description" data-i18n="subscription_settings.servers.subtitle">Выберите нужные регионы подключения.</div>
+                                </div>
+                                <div class="subscription-settings-section-meta" id="subscriptionSettingsServersMeta"></div>
+                            </div>
+                            <div class="subscription-settings-list" id="subscriptionSettingsServersList"></div>
+                            <div class="subscription-settings-empty hidden" id="subscriptionSettingsServersEmpty" data-i18n="subscription_settings.servers.empty">Нет доступных серверов</div>
+                            <div class="subscription-settings-disabled-note hidden" id="subscriptionSettingsServersDisabled" data-i18n="subscription_settings.section.disabled">Эта опция временно недоступна.</div>
+                            <div class="subscription-settings-actions">
+                                <button class="subscription-settings-apply" id="subscriptionSettingsServersApply" type="button" disabled data-i18n="subscription_settings.servers.manage">Обновить серверы</button>
+                                <div class="subscription-settings-inline-hint" id="subscriptionSettingsServersHint"></div>
+                            </div>
+                        </div>
+                        <div class="subscription-settings-section" id="subscriptionSettingsTrafficSection">
+                            <div class="subscription-settings-section-header">
+                                <div>
+                                    <div class="subscription-settings-section-title" data-i18n="subscription_settings.traffic.title">Трафик</div>
+                                    <div class="subscription-settings-section-description" data-i18n="subscription_settings.traffic.subtitle">Выберите месячный лимит трафика.</div>
+                                </div>
+                                <div class="subscription-settings-section-meta" id="subscriptionSettingsTrafficMeta"></div>
+                            </div>
+                            <div class="subscription-settings-list" id="subscriptionSettingsTrafficList"></div>
+                            <div class="subscription-settings-empty hidden" id="subscriptionSettingsTrafficEmpty" data-i18n="subscription_settings.traffic.empty">Нет вариантов</div>
+                            <div class="subscription-settings-disabled-note hidden" id="subscriptionSettingsTrafficDisabled" data-i18n="subscription_settings.section.disabled">Эта опция временно недоступна.</div>
+                            <div class="subscription-settings-actions">
+                                <button class="subscription-settings-apply" id="subscriptionSettingsTrafficApply" type="button" disabled data-i18n="subscription_settings.traffic.apply">Обновить трафик</button>
+                                <div class="subscription-settings-inline-hint" id="subscriptionSettingsTrafficHint"></div>
+                            </div>
+                        </div>
+                        <div class="subscription-settings-section" id="subscriptionSettingsDevicesSection">
+                            <div class="subscription-settings-section-header">
+                                <div>
+                                    <div class="subscription-settings-section-title" data-i18n="subscription_settings.devices.title">Устройства</div>
+                                    <div class="subscription-settings-section-description" data-i18n="subscription_settings.devices.subtitle">Количество одновременно подключённых устройств.</div>
+                                </div>
+                                <div class="subscription-settings-section-meta" id="subscriptionSettingsDevicesMeta"></div>
+                            </div>
+                            <div class="subscription-settings-stepper">
+                                <button type="button" id="subscriptionSettingsDevicesDecrease">−</button>
+                                <div class="subscription-settings-stepper-value" id="subscriptionSettingsDevicesValue">0</div>
+                                <button type="button" id="subscriptionSettingsDevicesIncrease">+</button>
+                            </div>
+                            <div class="subscription-settings-price-note" id="subscriptionSettingsDevicesPrice"></div>
+                            <div class="subscription-settings-disabled-note hidden" id="subscriptionSettingsDevicesDisabled" data-i18n="subscription_settings.section.disabled">Эта опция временно недоступна.</div>
+                            <div class="subscription-settings-actions">
+                                <button class="subscription-settings-apply" id="subscriptionSettingsDevicesApply" type="button" disabled data-i18n="subscription_settings.devices.apply">Обновить устройства</button>
+                                <div class="subscription-settings-inline-hint" id="subscriptionSettingsDevicesHint"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="subscription-settings-error hidden" id="subscriptionSettingsError">
+                        <div id="subscriptionSettingsErrorText" data-i18n="subscription_settings.status.error">Не удалось загрузить настройки подписки.</div>
+                        <button class="subscription-settings-retry" id="subscriptionSettingsRetry" type="button" data-i18n="subscription_settings.action.retry">Повторить</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Promo Card -->
             <div class="card expandable promo-card hidden" id="promoCard">
                 <div class="card-header">
@@ -2799,6 +3556,26 @@
                 <div class="balance-content">
                     <div class="balance-amount" id="balanceAmount">—</div>
                     <div class="balance-label" data-i18n="card.balance.title">Balance</div>
+                    <div class="balance-actions">
+                        <button class="topup-button" type="button" id="topupBalanceBtn">
+                            <span aria-hidden="true">➕</span>
+                            <span data-i18n="button.topup_balance">Top up balance</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-backdrop hidden" id="topupModal">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="topupModalTitle">
+                    <div class="modal-header">
+                        <div class="modal-title" id="topupModalTitle" data-i18n="topup.title">Top up balance</div>
+                        <div class="modal-subtitle" id="topupModalSubtitle" data-i18n="topup.subtitle">Choose a payment method</div>
+                    </div>
+                    <div id="topupModalBody"></div>
+                    <div class="modal-error hidden" id="topupModalError"></div>
+                    <div class="modal-actions" id="topupModalFooter">
+                        <button class="modal-button secondary" type="button" id="topupModalCancelBtn" data-i18n="topup.cancel">Cancel</button>
+                    </div>
                 </div>
             </div>
 
@@ -3024,6 +3801,8 @@
             });
         });
 
+        setupSubscriptionSettingsEvents();
+
         const themeToggle = document.getElementById('themeToggle');
         const THEME_STORAGE_KEY = 'remnawave-miniapp-theme';
         let currentTheme = 'light';
@@ -3152,8 +3931,107 @@
                 'button.connect.default': 'Connect to VPN',
                 'button.connect.happ': 'Connect',
                 'button.copy': 'Copy subscription link',
+                'button.topup_balance': 'Top up balance',
+                'topup.title': 'Top up balance',
+                'topup.subtitle': 'Choose a payment method',
+                'topup.methods.subtitle': 'Select how you want to pay',
+                'topup.method.stars.title': 'Telegram Stars',
+                'topup.method.stars.description': 'Pay using Telegram Stars',
+                'topup.method.stars.invoice_hint': 'Telegram Stars payments use whole stars. Invoice: {stars} ⭐.',
+                'topup.method.stars.adjusted': 'Requested {requested}. Actual charge: {amount} ({stars} ⭐).',
+                'topup.method.yookassa.title': 'Bank card (YooKassa)',
+                'topup.method.yookassa.description': 'Pay securely with a bank card',
+                'topup.method.mulenpay.title': 'Bank card (Mulen Pay)',
+                'topup.method.mulenpay.description': 'Fast payment with bank card',
+                'topup.method.pal24.title': 'SBP (PayPalych)',
+                'topup.method.pal24.description': 'Pay via Faster Payments System',
+                'topup.method.pal24.option.sbp.title': 'Faster Payments (SBP)',
+                'topup.method.pal24.option.sbp.description': 'Instant transfer via SBP with no extra fees',
+                'topup.method.pal24.option.card.title': 'Bank card payment',
+                'topup.method.pal24.option.card.description': 'Pay with a bank card via PayPalych',
+                'topup.method.cryptobot.title': 'Cryptocurrency (CryptoBot)',
+                'topup.method.cryptobot.description': 'Pay with crypto assets',
+                'topup.method.tribute.title': 'Bank card (Tribute)',
+                'topup.method.tribute.description': 'Redirect to Tribute payment page',
+                'topup.amount.title': 'Enter amount',
+                'topup.amount.subtitle': 'Specify how much you want to top up',
+                'topup.amount.placeholder': 'Amount in {currency}',
+                'topup.amount.hint.range': 'Available range: {min} — {max}',
+                'topup.amount.hint.single_min': 'Minimum top-up: {min}',
+                'topup.amount.hint.single_max': 'Maximum top-up: {max}',
+                'topup.submit': 'Continue',
+                'topup.cancel': 'Close',
+                'topup.back': 'Back',
+                'topup.open_link': 'Open payment page',
+                'topup.loading': 'Preparing payment…',
+                'topup.error.generic': 'Unable to start the payment. Please try again later.',
+                'topup.error.amount': 'Enter a valid amount within the limits.',
+                'topup.error.unavailable': 'This payment method is temporarily unavailable.',
+                'topup.status.pending.title': 'Waiting for confirmation',
+                'topup.status.pending.description': 'Complete the payment in the selected provider. We will update this window automatically.',
+                'topup.status.refreshing.description': 'Updating payment status…',
+                'topup.status.success.title': 'Payment received',
+                'topup.status.success.description': 'Funds have been credited to your balance.',
+                'topup.status.failed.title': 'Payment not confirmed',
+                'topup.status.failed.description': 'We could not confirm the payment automatically. Please check later or contact support.',
+                'topup.status.retry': 'Try again',
+                'topup.done': 'Done',
                 'button.buy_subscription': 'Buy Subscription',
                 'card.balance.title': 'Balance',
+                'subscription_settings.title': 'Subscription settings',
+                'subscription_settings.summary.servers': 'Servers: {count}',
+                'subscription_settings.summary.servers_one': 'Server: {count}',
+                'subscription_settings.summary.traffic': 'Traffic: {amount}',
+                'subscription_settings.summary.devices': 'Devices: {count}',
+                'subscription_settings.summary.devices_one': 'Device: {count}',
+                'subscription_settings.summary.unlimited': 'Unlimited',
+                'subscription_settings.status.loading': 'Loading subscription settings…',
+                'subscription_settings.status.error': 'Unable to load subscription settings.',
+                'subscription_settings.action.retry': 'Try again',
+                'subscription_settings.section.disabled': 'This action is temporarily unavailable.',
+                'subscription_settings.servers.title': 'Servers',
+                'subscription_settings.servers.subtitle': 'Choose the regions you need.',
+                'subscription_settings.servers.manage': 'Update servers',
+                'subscription_settings.servers.empty': 'No servers available',
+                'subscription_settings.servers.limit': 'Selected: {count}',
+                'subscription_settings.servers.hint': 'Discounts are applied automatically.',
+                'subscription_settings.traffic.title': 'Traffic',
+                'subscription_settings.traffic.subtitle': 'Select your monthly traffic limit.',
+                'subscription_settings.traffic.apply': 'Update traffic',
+                'subscription_settings.traffic.empty': 'No traffic options available',
+                'subscription_settings.traffic.current': 'Current: {limit}',
+                'subscription_settings.devices.title': 'Devices',
+                'subscription_settings.devices.subtitle': 'Number of simultaneous connections.',
+                'subscription_settings.devices.apply': 'Update devices',
+                'subscription_settings.devices.value': '{count} devices',
+                'subscription_settings.devices.value_one': '{count} device',
+                'subscription_settings.devices.unlimited': 'Unlimited',
+                'subscription_settings.price.included': 'Included',
+                'subscription_settings.success.servers': 'Servers updated successfully.',
+                'subscription_settings.success.traffic': 'Traffic limit updated successfully.',
+                'subscription_settings.success.devices': 'Device limit updated successfully.',
+                'subscription_settings.error.generic': 'Unable to update subscription settings. Please try again later.',
+                'subscription_settings.error.unauthorized': 'Authorization failed. Please reopen the mini app from Telegram.',
+                'subscription_settings.error.validation': 'Please review your selection and try again.',
+                'subscription_settings.pending_action': 'Saving…',
+                'subscription_settings.confirm.title.charge': 'Confirm payment',
+                'subscription_settings.confirm.title.free': 'Confirm changes',
+                'subscription_settings.confirm.action.pay': 'Pay',
+                'subscription_settings.confirm.action.apply': 'Apply',
+                'subscription_settings.confirm.action.cancel': 'Cancel',
+                'subscription_settings.confirm.total.charge': 'You will be charged {amount}.',
+                'subscription_settings.confirm.total.charge_period': 'You will be charged {amount} for {period}.',
+                'subscription_settings.confirm.total.free': 'No charges will be made.',
+                'subscription_settings.confirm.servers.add': 'The following servers will be connected:',
+                'subscription_settings.confirm.servers.remove': 'The following servers will be disconnected without refunds:',
+                'subscription_settings.confirm.servers.entry_paid': '{name} — {amount}',
+                'subscription_settings.confirm.servers.entry_free': '{name} — included',
+                'subscription_settings.confirm.traffic.increase': 'Traffic limit will change to {value}.',
+                'subscription_settings.confirm.traffic.decrease': 'Traffic limit will change to {value}. No charges apply.',
+                'subscription_settings.confirm.devices.increase': 'Device limit will change to {value}.',
+                'subscription_settings.confirm.devices.decrease': 'Device limit will change to {value}. No charges apply.',
+                'subscription_settings.confirm.months.one': '{count} month',
+                'subscription_settings.confirm.months.other': '{count} months',
                 'promo_code.title': 'Activate promo code',
                 'promo_code.subtitle': 'Enter a promo code to unlock rewards instantly.',
                 'promo_code.placeholder': 'Enter promo code',
@@ -3334,8 +4212,107 @@
                 'button.connect.default': 'Подключиться к VPN',
                 'button.connect.happ': 'Подключиться',
                 'button.copy': 'Скопировать ссылку подписки',
+                'button.topup_balance': 'Пополнить баланс',
+                'topup.title': 'Пополнение баланса',
+                'topup.subtitle': 'Выберите способ оплаты',
+                'topup.methods.subtitle': 'Выберите удобный способ оплаты',
+                'topup.method.stars.title': 'Telegram Stars',
+                'topup.method.stars.description': 'Оплата звёздами Telegram',
+                'topup.method.stars.invoice_hint': 'Оплата проходит целыми звёздами. Счёт: {stars} ⭐.',
+                'topup.method.stars.adjusted': 'Вы запросили {requested}. Итог к оплате: {amount} ({stars} ⭐).',
+                'topup.method.yookassa.title': 'Банковская карта (YooKassa)',
+                'topup.method.yookassa.description': 'Безопасная оплата банковской картой',
+                'topup.method.mulenpay.title': 'Банковская карта (Mulen Pay)',
+                'topup.method.mulenpay.description': 'Мгновенное списание с карты',
+                'topup.method.pal24.title': 'СБП (PayPalych)',
+                'topup.method.pal24.description': 'Оплата через Систему быстрых платежей',
+                'topup.method.pal24.option.sbp.title': 'СБП (рекомендуется)',
+                'topup.method.pal24.option.sbp.description': 'Мгновенный перевод без комиссии через СБП',
+                'topup.method.pal24.option.card.title': 'Банковская карта',
+                'topup.method.pal24.option.card.description': 'Оплата картой через PayPalych',
+                'topup.method.cryptobot.title': 'Криптовалюта (CryptoBot)',
+                'topup.method.cryptobot.description': 'Оплата в USDT, TON и других активах',
+                'topup.method.tribute.title': 'Банковская карта (Tribute)',
+                'topup.method.tribute.description': 'Переход на страницу оплаты Tribute',
+                'topup.amount.title': 'Введите сумму',
+                'topup.amount.subtitle': 'Укажите сумму пополнения',
+                'topup.amount.placeholder': 'Сумма в {currency}',
+                'topup.amount.hint.range': 'Доступный диапазон: {min} — {max}',
+                'topup.amount.hint.single_min': 'Минимальная сумма: {min}',
+                'topup.amount.hint.single_max': 'Максимальная сумма: {max}',
+                'topup.submit': 'Продолжить',
+                'topup.cancel': 'Закрыть',
+                'topup.back': 'Назад',
+                'topup.open_link': 'Перейти к оплате',
+                'topup.loading': 'Готовим платеж…',
+                'topup.error.generic': 'Не удалось создать платеж. Попробуйте ещё раз позже.',
+                'topup.error.amount': 'Введите корректную сумму в пределах лимитов.',
+                'topup.error.unavailable': 'Способ оплаты временно недоступен.',
+                'topup.status.pending.title': 'Ожидаем подтверждение',
+                'topup.status.pending.description': 'Завершите оплату у выбранного провайдера. Это окно обновится автоматически.',
+                'topup.status.refreshing.description': 'Обновляем статус платежа…',
+                'topup.status.success.title': 'Платеж зачислен',
+                'topup.status.success.description': 'Средства успешно поступили на ваш баланс.',
+                'topup.status.failed.title': 'Платеж не подтверждён',
+                'topup.status.failed.description': 'Не удалось подтвердить платеж автоматически. Проверьте позже или обратитесь в поддержку.',
+                'topup.status.retry': 'Повторить попытку',
+                'topup.done': 'Готово',
                 'button.buy_subscription': 'Купить подписку',
                 'card.balance.title': 'Баланс',
+                'subscription_settings.title': 'Настройка подписки',
+                'subscription_settings.summary.servers': 'Серверов: {count}',
+                'subscription_settings.summary.servers_one': 'Сервер: {count}',
+                'subscription_settings.summary.traffic': 'Трафик: {amount}',
+                'subscription_settings.summary.devices': 'Устройств: {count}',
+                'subscription_settings.summary.devices_one': 'Устройство: {count}',
+                'subscription_settings.summary.unlimited': 'Безлимит',
+                'subscription_settings.status.loading': 'Загружаем настройки подписки…',
+                'subscription_settings.status.error': 'Не удалось загрузить настройки подписки.',
+                'subscription_settings.action.retry': 'Попробовать снова',
+                'subscription_settings.section.disabled': 'Действие временно недоступно.',
+                'subscription_settings.servers.title': 'Серверы',
+                'subscription_settings.servers.subtitle': 'Выберите нужные регионы подключения.',
+                'subscription_settings.servers.manage': 'Обновить серверы',
+                'subscription_settings.servers.empty': 'Нет доступных серверов',
+                'subscription_settings.servers.limit': 'Выбрано: {count}',
+                'subscription_settings.servers.hint': 'Скидки применяются автоматически.',
+                'subscription_settings.traffic.title': 'Трафик',
+                'subscription_settings.traffic.subtitle': 'Выберите месячный лимит трафика.',
+                'subscription_settings.traffic.apply': 'Обновить трафик',
+                'subscription_settings.traffic.empty': 'Нет доступных вариантов трафика',
+                'subscription_settings.traffic.current': 'Текущий: {limit}',
+                'subscription_settings.devices.title': 'Устройства',
+                'subscription_settings.devices.subtitle': 'Количество одновременных подключений.',
+                'subscription_settings.devices.apply': 'Обновить устройства',
+                'subscription_settings.devices.value': '{count} устройств',
+                'subscription_settings.devices.value_one': '{count} устройство',
+                'subscription_settings.devices.unlimited': 'Безлимит',
+                'subscription_settings.price.included': 'Включено',
+                'subscription_settings.success.servers': 'Серверы успешно обновлены.',
+                'subscription_settings.success.traffic': 'Лимит трафика обновлён.',
+                'subscription_settings.success.devices': 'Лимит устройств обновлён.',
+                'subscription_settings.error.generic': 'Не удалось обновить настройки подписки. Попробуйте позже.',
+                'subscription_settings.error.unauthorized': 'Не удалось пройти авторизацию. Откройте мини-приложение заново из Telegram.',
+                'subscription_settings.error.validation': 'Проверьте выбранные параметры и попробуйте ещё раз.',
+                'subscription_settings.pending_action': 'Сохраняем…',
+                'subscription_settings.confirm.title.charge': 'Подтвердите оплату',
+                'subscription_settings.confirm.title.free': 'Подтвердите изменения',
+                'subscription_settings.confirm.action.pay': 'Оплатить',
+                'subscription_settings.confirm.action.apply': 'Применить',
+                'subscription_settings.confirm.action.cancel': 'Отменить',
+                'subscription_settings.confirm.total.charge': 'Будет списано {amount}.',
+                'subscription_settings.confirm.total.charge_period': 'Будет списано {amount} за {period}.',
+                'subscription_settings.confirm.total.free': 'Списаний не будет.',
+                'subscription_settings.confirm.servers.add': 'Будут подключены серверы:',
+                'subscription_settings.confirm.servers.remove': 'Будут отключены серверы без возврата средств:',
+                'subscription_settings.confirm.servers.entry_paid': '{name} — {amount}',
+                'subscription_settings.confirm.servers.entry_free': '{name} — включено',
+                'subscription_settings.confirm.traffic.increase': 'Лимит трафика изменится на {value}.',
+                'subscription_settings.confirm.traffic.decrease': 'Лимит трафика изменится на {value}. Дополнительная оплата не требуется.',
+                'subscription_settings.confirm.devices.increase': 'Лимит устройств изменится на {value}.',
+                'subscription_settings.confirm.devices.decrease': 'Лимит устройств изменится на {value}. Дополнительная оплата не требуется.',
+                'subscription_settings.confirm.months.one': '{count} месяц',
+                'subscription_settings.confirm.months.other': '{count} месяцев',
                 'promo_code.title': 'Активировать промокод',
                 'promo_code.subtitle': 'Введите промокод и сразу получите бонусы.',
                 'promo_code.placeholder': 'Введите промокод',
@@ -3609,6 +4586,579 @@
         let preferredLanguage = 'en';
         let languageLockedByUser = false;
         let currentErrorState = null;
+        let paymentMethodsCache = null;
+        let paymentMethodsPromise = null;
+        let activePaymentMethod = null;
+        const paymentMethodSelections = {};
+        const activePaymentMonitors = new Map();
+        let paymentStatusPollTimer = null;
+        let isPaymentStatusPolling = false;
+        let subscriptionSettingsData = null;
+        let subscriptionSettingsPromise = null;
+        let subscriptionSettingsError = null;
+        let subscriptionSettingsLoading = false;
+        let subscriptionSettingsAction = null;
+        const subscriptionSettingsSelections = {
+            servers: new Set(),
+            traffic: null,
+            devices: null,
+        };
+
+        const PAYMENT_STATUS_INITIAL_DELAY_MS = 2000;
+        const PAYMENT_STATUS_POLL_INTERVAL_MS = 5000;
+        const PAYMENT_STATUS_TIMEOUT_MS = 180000;
+
+        function cleanupPaymentPollersIfIdle() {
+            if (paymentStatusPollTimer) {
+                clearTimeout(paymentStatusPollTimer);
+                paymentStatusPollTimer = null;
+            }
+            isPaymentStatusPolling = false;
+        }
+
+        function stopAllPaymentMonitors() {
+            activePaymentMonitors.clear();
+            cleanupPaymentPollersIfIdle();
+        }
+
+        function createPaymentStatusView() {
+            const container = document.createElement('div');
+            container.className = 'payment-status';
+
+            const icon = document.createElement('div');
+            icon.className = 'payment-status-icon';
+
+            const content = document.createElement('div');
+            content.className = 'payment-status-content';
+
+            const title = document.createElement('div');
+            title.className = 'payment-status-title';
+
+            const description = document.createElement('div');
+            description.className = 'payment-status-description';
+
+            content.appendChild(title);
+            content.appendChild(description);
+            container.appendChild(icon);
+            container.appendChild(content);
+
+            return { element: container, icon, title, description };
+        }
+
+        function updatePaymentStatusView(view, options = {}) {
+            if (!view) {
+                return;
+            }
+
+            const { state = 'pending', message = null, extraLines = [] } = options;
+            const normalizedState = state === 'refreshing' ? 'pending' : state;
+
+            const fallbackTitles = {
+                pending: 'Waiting for confirmation',
+                success: 'Payment received',
+                failed: 'Payment not confirmed',
+            };
+
+            const fallbackDescriptions = {
+                pending: 'Complete the payment in the selected provider. We will update this window automatically.',
+                refreshing: 'Updating payment status…',
+                success: 'Funds have been credited to your balance.',
+                failed: 'We could not confirm the payment automatically. Please check later or contact support.',
+            };
+
+            view.element.classList.remove('success', 'error');
+            view.icon.innerHTML = '';
+
+            if (state === 'success') {
+                view.element.classList.add('success');
+                view.icon.textContent = '✅';
+            } else if (state === 'failed') {
+                view.element.classList.add('error');
+                view.icon.textContent = '⚠️';
+            } else {
+                const spinner = document.createElement('div');
+                spinner.className = 'payment-status-spinner';
+                view.icon.appendChild(spinner);
+            }
+
+            const titleKey = `topup.status.${normalizedState}.title`;
+            const translatedTitle = t(titleKey);
+            view.title.textContent = translatedTitle && translatedTitle !== titleKey
+                ? translatedTitle
+                : (fallbackTitles[normalizedState] || 'Payment status');
+
+            let descriptionKey = `topup.status.${state}.description`;
+            if (state === 'refreshing') {
+                descriptionKey = 'topup.status.refreshing.description';
+            }
+            const translatedDescription = t(descriptionKey);
+            const defaultDescription = translatedDescription && translatedDescription !== descriptionKey
+                ? translatedDescription
+                : (fallbackDescriptions[state] || fallbackDescriptions[normalizedState] || '');
+
+            const lines = [];
+            if (message) {
+                lines.push(message);
+            }
+            if (Array.isArray(extraLines)) {
+                extraLines.filter(Boolean).forEach(line => lines.push(line));
+            }
+            if (!message && defaultDescription) {
+                lines.push(defaultDescription);
+            } else if (message && defaultDescription && defaultDescription !== message) {
+                lines.push(defaultDescription);
+            }
+
+            view.description.textContent = lines.filter(Boolean).join(' ');
+        }
+
+        function applyPaymentSubtitle(monitor, state) {
+            if (!monitor || !monitor.method) {
+                return;
+            }
+
+            if (state === 'success') {
+                setTopupModalSubtitle('topup.status.success.title', 'Payment received');
+                return;
+            }
+
+            if (state === 'failed') {
+                setTopupModalSubtitle('topup.status.failed.title', 'Payment not confirmed');
+                return;
+            }
+
+            if (monitor.method.id === 'pal24') {
+                const option = (monitor.option || 'sbp').toLowerCase();
+                const optionKey = option === 'card' ? 'card' : 'sbp';
+                const fallback = optionKey === 'card'
+                    ? 'Bank card payment'
+                    : 'Faster Payments (SBP)';
+                setTopupModalSubtitle(`topup.method.pal24.option.${optionKey}.title`, fallback);
+                return;
+            }
+
+            setTopupModalSubtitle(`topup.method.${monitor.method.id}.title`, monitor.method.id);
+        }
+
+        function buildPaymentStatusQuery(methodId, amountKopeks, extra = {}) {
+            if (!methodId) {
+                return null;
+            }
+
+            const query = { method: methodId };
+            const identifiers = {};
+
+            if (extra.local_payment_id !== undefined && extra.local_payment_id !== null) {
+                query.localPaymentId = extra.local_payment_id;
+                identifiers.localPaymentId = extra.local_payment_id;
+            }
+
+            const invoiceIdentifier = extra.invoice_id || extra.bill_id || extra.order_id || extra.invoiceId;
+            if (invoiceIdentifier) {
+                query.invoiceId = invoiceIdentifier;
+                identifiers.invoiceId = invoiceIdentifier;
+            }
+
+            if (extra.payment_id) {
+                query.paymentId = extra.payment_id;
+                identifiers.paymentId = extra.payment_id;
+            }
+
+            const payloadValue = extra.payload || extra.invoice_payload;
+            if (payloadValue) {
+                query.payload = payloadValue;
+                identifiers.payload = payloadValue;
+            }
+
+            if (Number.isFinite(amountKopeks)) {
+                query.amountKopeks = amountKopeks;
+                identifiers.amountKopeks = amountKopeks;
+            }
+
+            const startedAtRaw = extra.started_at || extra.requested_at || extra.startedAt;
+            const startedAt = startedAtRaw ? String(startedAtRaw) : new Date().toISOString();
+            query.startedAt = startedAt;
+            identifiers.startedAt = startedAt;
+
+            if (extra.external_id) {
+                identifiers.externalId = extra.external_id;
+            }
+
+            return { query, identifiers, startedAt };
+        }
+
+        function applyPaymentFooterState(monitor, state) {
+            if (!monitor || !monitor.method) {
+                return;
+            }
+
+            const method = monitor.method;
+            const fallbackRawInput = monitor.rawInput ?? (
+                Number.isFinite(monitor.amountKopeks)
+                    ? (monitor.amountKopeks / 100).toString()
+                    : ''
+            );
+
+            const goBack = () => {
+                stopAllPaymentMonitors();
+                if (method.requires_amount) {
+                    renderTopupAmountForm(method, {
+                        rawInput: fallbackRawInput,
+                        selectedOption: monitor.option || paymentMethodSelections[method.id],
+                    });
+                } else {
+                    renderTopupMethodsView();
+                }
+            };
+
+            const buttons = [];
+            if (state === 'pending') {
+                buttons.push({
+                    id: 'topupBackButton',
+                    labelKey: 'topup.back',
+                    fallbackLabel: 'Back',
+                    variant: 'secondary',
+                    onClick: goBack,
+                });
+                buttons.push({
+                    id: 'topupOpenLinkButton',
+                    labelKey: 'topup.open_link',
+                    fallbackLabel: 'Open payment page',
+                    variant: 'primary',
+                    onClick: () => openExternalLink(monitor.paymentUrl || monitor.originalUrl),
+                });
+            } else if (state === 'success') {
+                buttons.push({
+                    id: 'topupBackButton',
+                    labelKey: 'topup.back',
+                    fallbackLabel: 'Back',
+                    variant: 'secondary',
+                    onClick: () => {
+                        stopAllPaymentMonitors();
+                        renderTopupMethodsView();
+                    },
+                });
+                buttons.push({
+                    id: 'topupCloseButton',
+                    labelKey: 'topup.cancel',
+                    fallbackLabel: 'Close',
+                    variant: 'primary',
+                    onClick: () => {
+                        stopAllPaymentMonitors();
+                        closeTopupModal();
+                    },
+                });
+            } else if (state === 'failed') {
+                buttons.push({
+                    id: 'topupBackButton',
+                    labelKey: 'topup.back',
+                    fallbackLabel: 'Back',
+                    variant: 'secondary',
+                    onClick: goBack,
+                });
+                buttons.push({
+                    id: 'topupRetryButton',
+                    labelKey: 'topup.status.retry',
+                    fallbackLabel: 'Try again',
+                    variant: 'primary',
+                    onClick: () => {
+                        stopAllPaymentMonitors();
+                        startPaymentForMethod(method, monitor.amountKopeks, {
+                            rawInput: monitor.rawInput ?? fallbackRawInput,
+                            providerOption: monitor.option || monitor.extra?.selected_option,
+                        });
+                    },
+                });
+            }
+
+            setTopupFooter(buttons);
+            monitor.backButton = document.getElementById('topupBackButton');
+            monitor.openButton = document.getElementById('topupOpenLinkButton');
+            monitor.retryButton = document.getElementById('topupRetryButton');
+            monitor.closeButton = document.getElementById('topupCloseButton');
+
+            if (state === 'success' && monitor.openButton) {
+                monitor.openButton.disabled = true;
+            }
+        }
+
+        function startPaymentStatusMonitor(context) {
+            if (!context || !context.method) {
+                return null;
+            }
+
+            const { query, identifiers } = buildPaymentStatusQuery(
+                context.method.id,
+                Number.isFinite(context.amountKopeks) ? context.amountKopeks : null,
+                context.extra || {},
+            ) || {};
+
+            const statusView = context.statusView || createPaymentStatusView();
+            updatePaymentStatusView(statusView, { state: 'pending' });
+
+            const monitorId = `monitor_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            const monitor = {
+                id: monitorId,
+                method: context.method,
+                methodId: context.method.id,
+                statusView,
+                amountKopeks: Number.isFinite(context.amountKopeks) ? context.amountKopeks : null,
+                option: (context.option || context.extra?.selected_option || null) || null,
+                paymentUrl: context.paymentUrl || context.originalUrl || null,
+                originalUrl: context.originalUrl || context.paymentUrl || null,
+                rawInput: context.rawInput || null,
+                extra: context.extra || {},
+                query: query || { method: context.method.id },
+                identifiers: identifiers || {},
+                state: 'pending',
+                createdAt: Date.now(),
+                timeoutMs: PAYMENT_STATUS_TIMEOUT_MS,
+                refreshed: false,
+                pollingDisabled: !(tg.initData || '').length,
+            };
+
+            activePaymentMonitors.set(monitorId, monitor);
+            applyPaymentSubtitle(monitor, 'pending');
+            applyPaymentFooterState(monitor, 'pending');
+
+            if (!monitor.pollingDisabled) {
+                schedulePaymentStatusPoll(true);
+            }
+
+            return monitor;
+        }
+
+        function schedulePaymentStatusPoll(immediate = false) {
+            const hasPollableMonitor = Array.from(activePaymentMonitors.values()).some(
+                monitor => monitor && !monitor.pollingDisabled && monitor.state !== 'success' && monitor.state !== 'failed'
+            );
+
+            if (!hasPollableMonitor) {
+                cleanupPaymentPollersIfIdle();
+                return;
+            }
+
+            if (paymentStatusPollTimer) {
+                return;
+            }
+
+            const delay = immediate ? PAYMENT_STATUS_INITIAL_DELAY_MS : PAYMENT_STATUS_POLL_INTERVAL_MS;
+            paymentStatusPollTimer = setTimeout(() => {
+                paymentStatusPollTimer = null;
+                pollPaymentStatuses();
+            }, Math.max(0, delay));
+        }
+
+        async function pollPaymentStatuses() {
+            if (isPaymentStatusPolling) {
+                return;
+            }
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                cleanupPaymentPollersIfIdle();
+                return;
+            }
+
+            const now = Date.now();
+            const pendingMonitors = [];
+
+            activePaymentMonitors.forEach(monitor => {
+                if (!monitor || monitor.pollingDisabled || monitor.state === 'success' || monitor.state === 'failed') {
+                    return;
+                }
+
+                if (monitor.createdAt + monitor.timeoutMs < now) {
+                    finalizePaymentMonitor(monitor, { state: 'failed' });
+                    return;
+                }
+
+                pendingMonitors.push(monitor);
+            });
+
+            if (!pendingMonitors.length) {
+                cleanupPaymentPollersIfIdle();
+                return;
+            }
+
+            isPaymentStatusPolling = true;
+            pendingMonitors.forEach(monitor => {
+                monitor.state = 'refreshing';
+                updatePaymentStatusView(monitor.statusView, { state: 'refreshing' });
+            });
+
+            try {
+                const payload = {
+                    initData,
+                    payments: pendingMonitors.map(monitor => ({ ...monitor.query })),
+                };
+
+                const response = await fetch('/miniapp/payments/status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !Array.isArray(data?.results)) {
+                    throw new Error('Failed to fetch payment statuses');
+                }
+
+                handlePaymentStatusResults(data.results);
+            } catch (error) {
+                console.warn('Payment status polling failed:', error);
+                pendingMonitors.forEach(monitor => {
+                    if (monitor.state === 'refreshing') {
+                        monitor.state = 'pending';
+                        updatePaymentStatusView(monitor.statusView, { state: 'pending' });
+                    }
+                });
+            } finally {
+                isPaymentStatusPolling = false;
+                schedulePaymentStatusPoll(false);
+            }
+        }
+
+        function normalizeIdentifier(value) {
+            if (value === undefined || value === null) {
+                return null;
+            }
+            return String(value);
+        }
+
+        function findMonitorForResult(result) {
+            if (!result || !result.method) {
+                return null;
+            }
+
+            const methodId = String(result.method).toLowerCase();
+            const monitors = Array.from(activePaymentMonitors.values()).filter(
+                monitor => monitor && monitor.methodId === methodId
+            );
+
+            if (!monitors.length) {
+                return null;
+            }
+
+            const extra = result.extra || {};
+            const localId = normalizeIdentifier(extra.local_payment_id);
+            const invoiceId = normalizeIdentifier(extra.invoice_id || extra.bill_id);
+            const paymentId = normalizeIdentifier(extra.payment_id);
+            const payload = normalizeIdentifier(extra.payload);
+            const externalId = normalizeIdentifier(result.external_id);
+            const amount = Number.isFinite(result.amount_kopeks) ? Number(result.amount_kopeks) : null;
+
+            let fallback = null;
+            for (const monitor of monitors) {
+                const ids = monitor.identifiers || {};
+
+                if (localId && normalizeIdentifier(ids.localPaymentId) === localId) {
+                    return monitor;
+                }
+                if (invoiceId && normalizeIdentifier(ids.invoiceId) === invoiceId) {
+                    return monitor;
+                }
+                if (paymentId && normalizeIdentifier(ids.paymentId) === paymentId) {
+                    return monitor;
+                }
+                if (payload && normalizeIdentifier(ids.payload) === payload) {
+                    return monitor;
+                }
+                if (externalId && normalizeIdentifier(ids.externalId) === externalId) {
+                    return monitor;
+                }
+                if (amount !== null && monitor.amountKopeks === amount) {
+                    fallback = monitor;
+                }
+            }
+
+            return fallback || monitors[0] || null;
+        }
+
+        function handlePaymentStatusResults(results) {
+            if (!Array.isArray(results)) {
+                return;
+            }
+
+            results.forEach(result => {
+                const monitor = findMonitorForResult(result);
+                if (!monitor) {
+                    return;
+                }
+
+                const extra = result.extra || {};
+                if (extra.local_payment_id && !monitor.query.localPaymentId) {
+                    monitor.query.localPaymentId = extra.local_payment_id;
+                    monitor.identifiers.localPaymentId = extra.local_payment_id;
+                }
+                if ((extra.invoice_id || extra.bill_id) && !monitor.query.invoiceId) {
+                    const invoiceId = extra.invoice_id || extra.bill_id;
+                    monitor.query.invoiceId = invoiceId;
+                    monitor.identifiers.invoiceId = invoiceId;
+                }
+                if (extra.payment_id && !monitor.query.paymentId) {
+                    monitor.query.paymentId = extra.payment_id;
+                    monitor.identifiers.paymentId = extra.payment_id;
+                }
+                if (extra.payload && !monitor.query.payload) {
+                    monitor.query.payload = extra.payload;
+                    monitor.identifiers.payload = extra.payload;
+                }
+                if (extra.external_id) {
+                    monitor.identifiers.externalId = extra.external_id;
+                }
+
+                const status = String(result.status || '').toLowerCase();
+                const message = typeof result.message === 'string' ? result.message : null;
+
+                if (status === 'paid' || result.is_paid) {
+                    finalizePaymentMonitor(monitor, { state: 'success', result, message });
+                    return;
+                }
+
+                if (status === 'failed') {
+                    const failureMessage = message || (extra.remote_status ? `Status: ${extra.remote_status}` : null);
+                    finalizePaymentMonitor(monitor, { state: 'failed', result, message: failureMessage });
+                    return;
+                }
+
+                monitor.state = 'pending';
+                updatePaymentStatusView(monitor.statusView, { state: 'pending', message });
+            });
+        }
+
+        function finalizePaymentMonitor(monitor, options = {}) {
+            if (!monitor) {
+                return;
+            }
+
+            const { state, message } = options;
+
+            if (state === 'success') {
+                monitor.state = 'success';
+                updatePaymentStatusView(monitor.statusView, { state: 'success', message });
+                applyPaymentSubtitle(monitor, 'success');
+                applyPaymentFooterState(monitor, 'success');
+
+                if (!monitor.refreshed) {
+                    monitor.refreshed = true;
+                    refreshSubscriptionData({ silent: true }).catch(error => {
+                        console.warn('Failed to refresh subscription data:', error);
+                    });
+                }
+            } else if (state === 'failed') {
+                monitor.state = 'failed';
+                updatePaymentStatusView(monitor.statusView, { state: 'failed', message });
+                applyPaymentSubtitle(monitor, 'failed');
+                applyPaymentFooterState(monitor, 'failed');
+            }
+
+            activePaymentMonitors.delete(monitor.id);
+
+            if (!activePaymentMonitors.size) {
+                cleanupPaymentPollersIfIdle();
+            }
+        }
 
         function resolveLanguage(lang) {
             if (!lang) {
@@ -4096,6 +5646,7 @@
                     : autopayLabel;
             }
 
+            renderSubscriptionSettingsCard();
             renderPromoOffers();
             renderPromoSection();
             renderBalanceSection();
@@ -5149,6 +6700,79 @@
             return fallback || '';
         }
 
+        function ensureArray(value) {
+            return Array.isArray(value) ? value : [];
+        }
+
+        function coerceNumber(value, fallback = null) {
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? value : fallback;
+            }
+            if (typeof value === 'string') {
+                const normalized = value.trim();
+                if (!normalized) {
+                    return fallback;
+                }
+                const parsed = Number(normalized);
+                return Number.isFinite(parsed) ? parsed : fallback;
+            }
+            return fallback;
+        }
+
+        function coercePositiveInt(value, fallback = null) {
+            const numeric = coerceNumber(value, null);
+            if (numeric === null || Number.isNaN(numeric)) {
+                return fallback;
+            }
+            const intValue = Math.trunc(numeric);
+            return Number.isFinite(intValue) && intValue >= 0 ? intValue : fallback;
+        }
+
+        function coerceBoolean(value, fallback = false) {
+            if (typeof value === 'boolean') {
+                return value;
+            }
+            if (typeof value === 'number') {
+                return value !== 0;
+            }
+            if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase();
+                if (!normalized) {
+                    return fallback;
+                }
+                if (['true', '1', 'yes', 'on', 'enabled'].includes(normalized)) {
+                    return true;
+                }
+                if (['false', '0', 'no', 'off', 'disabled'].includes(normalized)) {
+                    return false;
+                }
+            }
+            return fallback;
+        }
+
+        async function parseJsonSafe(response) {
+            try {
+                return await response.json();
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function isSameSet(a, b) {
+            if (!(a instanceof Set) || !(b instanceof Set)) {
+                return false;
+            }
+            if (a.size !== b.size) {
+                return false;
+            }
+            for (const item of a) {
+                if (!b.has(item)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         function formatTraffic(value) {
             const numeric = typeof value === 'number' ? value : Number.parseFloat(value ?? '0');
             if (!Number.isFinite(numeric)) {
@@ -5200,6 +6824,435 @@
             }
 
             return formatCurrency(normalized / 100, currencyCode);
+        }
+
+        function formatDeviceCountLabel(count) {
+            const normalized = coercePositiveInt(count, null);
+            if (normalized === null) {
+                return '';
+            }
+            if (normalized <= 0) {
+                return t('subscription_settings.devices.unlimited');
+            }
+            const key = normalized === 1
+                ? 'subscription_settings.devices.value_one'
+                : 'subscription_settings.devices.value';
+            const template = t(key);
+            if (!template || template === key) {
+                return String(normalized);
+            }
+            return template.replace('{count}', String(normalized));
+        }
+
+        function formatMonthsLabel(months) {
+            const normalized = coercePositiveInt(months, null);
+            if (!normalized) {
+                return '';
+            }
+
+            const language = (preferredLanguage || '').toLowerCase();
+            if (language.startsWith('ru')) {
+                const mod10 = normalized % 10;
+                const mod100 = normalized % 100;
+                let word = 'месяцев';
+                if (mod10 === 1 && mod100 !== 11) {
+                    word = 'месяц';
+                } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+                    word = 'месяца';
+                }
+                return `${normalized} ${word}`;
+            }
+
+            const key = normalized === 1
+                ? 'subscription_settings.confirm.months.one'
+                : 'subscription_settings.confirm.months.other';
+            const template = t(key);
+            if (!template || template === key) {
+                return normalized === 1
+                    ? `${normalized} month`
+                    : `${normalized} months`;
+            }
+            return template.replace('{count}', String(normalized));
+        }
+
+        async function showConfirmationPopup({ title, message, confirmText, cancelText, destructive = false } = {}) {
+            const fallbackCancel = cancelText || (() => {
+                const cancelValue = t('subscription_settings.confirm.action.cancel');
+                return cancelValue && cancelValue !== 'subscription_settings.confirm.action.cancel'
+                    ? cancelValue
+                    : 'Cancel';
+            })();
+            const fallbackConfirm = confirmText || 'OK';
+            const popupMessage = message && message.trim().length ? message : '';
+
+            if (typeof tg.showPopup === 'function') {
+                const params = {
+                    title: title || undefined,
+                    message: popupMessage || ' ',
+                    buttons: [
+                        { id: 'cancel', type: 'cancel', text: fallbackCancel },
+                        { id: 'confirm', type: destructive ? 'destructive' : 'default', text: fallbackConfirm },
+                    ],
+                };
+
+                try {
+                    const buttonId = await new Promise(resolve => {
+                        let resolved = false;
+                        let timeoutId = null;
+
+                        const finalize = id => {
+                            if (resolved) {
+                                return;
+                            }
+                            resolved = true;
+                            if (timeoutId) {
+                                clearTimeout(timeoutId);
+                            }
+                            if (typeof tg.offEvent === 'function' && typeof popupClosedHandler === 'function') {
+                                tg.offEvent('popupClosed', popupClosedHandler);
+                            }
+                            resolve(id);
+                        };
+
+                        const popupClosedHandler = typeof tg.onEvent === 'function'
+                            ? event => {
+                                const id = event && (event.button_id || event.buttonId || event.id || event);
+                                finalize(id ?? null);
+                            }
+                            : null;
+
+                        if (popupClosedHandler) {
+                            tg.onEvent('popupClosed', popupClosedHandler);
+                        }
+
+                        const callback = id => finalize(id ?? null);
+
+                        try {
+                            if (tg.showPopup.length >= 2) {
+                                tg.showPopup(params, callback);
+                            } else {
+                                const result = tg.showPopup(params);
+                                if (result && typeof result.then === 'function') {
+                                    result
+                                        .then(data => {
+                                            const id = data && (data.button_id || data.buttonId || data.id || data);
+                                            finalize(id ?? null);
+                                        })
+                                        .catch(error => {
+                                            console.error('Popup promise rejected', error);
+                                            finalize(null);
+                                        });
+                                } else if (!popupClosedHandler) {
+                                    // No callback or events available – resolve on next tick to fall back.
+                                    setTimeout(() => finalize(null), 0);
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Failed to show confirmation popup', error);
+                            finalize(null);
+                            return;
+                        }
+
+                        timeoutId = setTimeout(() => finalize(null), 15000);
+                    });
+
+                    if (buttonId === 'confirm') {
+                        return true;
+                    }
+                    if (buttonId) {
+                        return false;
+                    }
+                    // If buttonId is null/undefined fall through to native confirm.
+                } catch (error) {
+                    console.error('Failed to await confirmation popup result', error);
+                }
+            }
+
+            const titlePart = title ? `${title}\n\n` : '';
+            return window.confirm(`${titlePart}${popupMessage || ''}`);
+        }
+
+        async function confirmSubscriptionSettingsChange({
+            lines = [],
+            chargeAmount = 0,
+            currency = 'RUB',
+            months = 0,
+            addTotalLine = true,
+            destructive = false,
+        } = {}) {
+            const normalizedLines = Array.isArray(lines)
+                ? lines.filter(line => typeof line === 'string' && line.trim().length)
+                : [];
+            const hasCharge = typeof chargeAmount === 'number' && chargeAmount > 0;
+            const normalizedMonths = coercePositiveInt(months, null);
+            const effectiveMonths = hasCharge ? (normalizedMonths || 1) : (normalizedMonths || 0);
+
+            if (addTotalLine) {
+                if (hasCharge) {
+                    const amountLabel = formatPriceFromKopeks(chargeAmount, currency);
+                    const periodLabel = effectiveMonths ? formatMonthsLabel(effectiveMonths) : '';
+                    const templateKey = periodLabel
+                        ? 'subscription_settings.confirm.total.charge_period'
+                        : 'subscription_settings.confirm.total.charge';
+                    const template = t(templateKey);
+                    let line;
+                    if (template && template !== templateKey) {
+                        line = template
+                            .replace('{amount}', amountLabel)
+                            .replace('{period}', periodLabel || '');
+                    } else if (periodLabel) {
+                        line = `You will be charged ${amountLabel} for ${periodLabel}.`;
+                    } else {
+                        line = `You will be charged ${amountLabel}.`;
+                    }
+                    normalizedLines.push(line);
+                } else {
+                    const template = t('subscription_settings.confirm.total.free');
+                    normalizedLines.push(
+                        template && template !== 'subscription_settings.confirm.total.free'
+                            ? template
+                            : 'No charges will be made.'
+                    );
+                }
+            }
+
+            const titleKey = hasCharge
+                ? 'subscription_settings.confirm.title.charge'
+                : 'subscription_settings.confirm.title.free';
+            const titleValue = t(titleKey);
+            const title = titleValue && titleValue !== titleKey
+                ? titleValue
+                : (hasCharge ? 'Confirm payment' : 'Confirm changes');
+
+            const confirmKey = hasCharge
+                ? 'subscription_settings.confirm.action.pay'
+                : 'subscription_settings.confirm.action.apply';
+            const confirmValue = t(confirmKey);
+            const confirmText = confirmValue && confirmValue !== confirmKey
+                ? confirmValue
+                : (hasCharge ? 'Pay' : 'Apply');
+
+            const cancelValue = t('subscription_settings.confirm.action.cancel');
+            const cancelText = cancelValue && cancelValue !== 'subscription_settings.confirm.action.cancel'
+                ? cancelValue
+                : 'Cancel';
+
+            const message = normalizedLines.join('\n\n').trim();
+            const fallbackMessage = hasCharge
+                ? `You will be charged ${formatPriceFromKopeks(chargeAmount, currency)}.`
+                : 'No charges will be made.';
+
+            return showConfirmationPopup({
+                title,
+                message: message || fallbackMessage,
+                confirmText,
+                cancelText,
+                destructive,
+            });
+        }
+
+        async function confirmSubscriptionServersUpdate(data, { added = [], removed = [] } = {}) {
+            const currency = data?.currency || userData?.balance_currency || 'RUB';
+            const months = coercePositiveInt(
+                data?.billing?.monthsRemaining
+                ?? data?.billing?.months_remaining
+                ?? data?.billing?.months,
+                null,
+            ) || 1;
+
+            const available = ensureArray(data?.servers?.available);
+            const currentServers = ensureArray(data?.current?.servers);
+            const findOption = uuid => available.find(option => option?.uuid === uuid) || null;
+            const findName = uuid => {
+                const option = findOption(uuid);
+                if (option?.name) {
+                    return option.name;
+                }
+                const current = currentServers.find(server => server?.uuid === uuid);
+                if (current?.name) {
+                    return current.name;
+                }
+                return uuid;
+            };
+
+            let totalCharge = 0;
+            const lines = [];
+
+            if (added.length) {
+                const headerTemplate = t('subscription_settings.confirm.servers.add');
+                lines.push(
+                    headerTemplate && headerTemplate !== 'subscription_settings.confirm.servers.add'
+                        ? headerTemplate
+                        : 'The following servers will be connected:'
+                );
+
+                const details = [];
+                for (const uuid of added) {
+                    const option = findOption(uuid);
+                    const name = findName(uuid);
+                    const monthlyPrice = coercePositiveInt(option?.priceKopeks, 0) || 0;
+                    const charge = monthlyPrice * months;
+                    totalCharge += charge;
+                    if (monthlyPrice > 0) {
+                        const template = t('subscription_settings.confirm.servers.entry_paid');
+                        const formatted = formatPriceFromKopeks(charge, currency);
+                        details.push(
+                            template && template !== 'subscription_settings.confirm.servers.entry_paid'
+                                ? template.replace('{name}', name).replace('{amount}', formatted)
+                                : `• ${name} — ${formatted}`
+                        );
+                    } else {
+                        const template = t('subscription_settings.confirm.servers.entry_free');
+                        const includedLabel = t('subscription_settings.price.included');
+                        const label = includedLabel && includedLabel !== 'subscription_settings.price.included'
+                            ? includedLabel
+                            : 'Included';
+                        details.push(
+                            template && template !== 'subscription_settings.confirm.servers.entry_free'
+                                ? template.replace('{name}', name).replace('{amount}', label)
+                                : `• ${name} — ${label}`
+                        );
+                    }
+                }
+
+                if (details.length) {
+                    lines.push(details.join('\n'));
+                }
+            }
+
+            if (removed.length) {
+                const names = removed.map(findName).filter(Boolean);
+                if (names.length) {
+                    const template = t('subscription_settings.confirm.servers.remove');
+                    if (template && template !== 'subscription_settings.confirm.servers.remove' && template.includes('{list}')) {
+                        lines.push(template.replace('{list}', names.join(', ')));
+                    } else {
+                        const header = template && template !== 'subscription_settings.confirm.servers.remove'
+                            ? template.replace('{list}', '').trim()
+                            : 'The following servers will be disconnected without refunds:';
+                        if (header) {
+                            lines.push(header);
+                        }
+                        lines.push(names.map(name => `• ${name}`).join('\n'));
+                    }
+                }
+            }
+
+            return confirmSubscriptionSettingsChange({
+                lines,
+                chargeAmount: totalCharge,
+                currency,
+                months,
+                destructive: removed.length > 0 && totalCharge === 0,
+            });
+        }
+
+        async function confirmSubscriptionTrafficUpdate(data, currentValue, nextValue) {
+            const currency = data?.currency || userData?.balance_currency || 'RUB';
+            const months = coercePositiveInt(
+                data?.billing?.monthsRemaining
+                ?? data?.billing?.months_remaining
+                ?? data?.billing?.months,
+                null,
+            ) || 1;
+
+            const options = ensureArray(data?.traffic?.options);
+            const findOption = value => options.find(option => Number(option?.value) === Number(value)) || null;
+            const currentOption = findOption(currentValue);
+            const nextOption = findOption(nextValue);
+
+            const currentPrice = coercePositiveInt(currentOption?.priceKopeks, 0) || 0;
+            const nextPrice = coercePositiveInt(nextOption?.priceKopeks, 0) || 0;
+            const priceDiffPerMonth = nextPrice - currentPrice;
+            const chargeAmount = priceDiffPerMonth > 0 ? priceDiffPerMonth * months : 0;
+
+            const valueLabel = (nextOption?.label && nextOption.label.trim().length)
+                ? nextOption.label
+                : formatTrafficLimit(nextValue);
+
+            const lines = [];
+            if (priceDiffPerMonth > 0) {
+                const template = t('subscription_settings.confirm.traffic.increase');
+                lines.push(
+                    template && template !== 'subscription_settings.confirm.traffic.increase'
+                        ? template.replace('{value}', valueLabel)
+                        : `Traffic limit will change to ${valueLabel}.`
+                );
+                return confirmSubscriptionSettingsChange({
+                    lines,
+                    chargeAmount,
+                    currency,
+                    months,
+                });
+            }
+
+            const decreaseTemplate = t('subscription_settings.confirm.traffic.decrease');
+            lines.push(
+                decreaseTemplate && decreaseTemplate !== 'subscription_settings.confirm.traffic.decrease'
+                    ? decreaseTemplate.replace('{value}', valueLabel)
+                    : `Traffic limit will change to ${valueLabel}. No charges apply.`
+            );
+
+            return confirmSubscriptionSettingsChange({
+                lines,
+                chargeAmount: 0,
+                currency,
+                months,
+                addTotalLine: false,
+            });
+        }
+
+        async function confirmSubscriptionDevicesUpdate(data, currentValue, nextValue) {
+            const currency = data?.currency || userData?.balance_currency || 'RUB';
+            const months = coercePositiveInt(
+                data?.billing?.monthsRemaining
+                ?? data?.billing?.months_remaining
+                ?? data?.billing?.months,
+                null,
+            ) || 1;
+
+            const options = ensureArray(data?.devices?.options);
+            const findOption = value => options.find(option => coercePositiveInt(option?.value, null) === value) || null;
+            const currentOption = findOption(currentValue);
+            const nextOption = findOption(nextValue);
+
+            const currentPrice = coercePositiveInt(currentOption?.priceKopeks, 0) || 0;
+            const nextPrice = coercePositiveInt(nextOption?.priceKopeks, 0) || 0;
+            const priceDiffPerMonth = nextPrice - currentPrice;
+            const chargeAmount = priceDiffPerMonth > 0 ? priceDiffPerMonth * months : 0;
+
+            const valueLabel = formatDeviceCountLabel(nextValue);
+
+            const lines = [];
+            if (priceDiffPerMonth > 0) {
+                const template = t('subscription_settings.confirm.devices.increase');
+                lines.push(
+                    template && template !== 'subscription_settings.confirm.devices.increase'
+                        ? template.replace('{value}', valueLabel)
+                        : `Device limit will change to ${valueLabel}.`
+                );
+                return confirmSubscriptionSettingsChange({
+                    lines,
+                    chargeAmount,
+                    currency,
+                    months,
+                });
+            }
+
+            const decreaseTemplate = t('subscription_settings.confirm.devices.decrease');
+            lines.push(
+                decreaseTemplate && decreaseTemplate !== 'subscription_settings.confirm.devices.decrease'
+                    ? decreaseTemplate.replace('{value}', valueLabel)
+                    : `Device limit will change to ${valueLabel}. No charges apply.`
+            );
+
+            return confirmSubscriptionSettingsChange({
+                lines,
+                chargeAmount: 0,
+                currency,
+                months,
+                addTotalLine: false,
+            });
         }
 
         function formatDate(value) {
@@ -5267,6 +7320,755 @@
                 : Number.parseFloat(userData?.balance_rubles ?? '0');
             const currency = (userData?.balance_currency || 'RUB').toUpperCase();
             amountElement.textContent = formatCurrency(balanceRubles, currency);
+        }
+
+        function getTopupElements() {
+            return {
+                backdrop: document.getElementById('topupModal'),
+                title: document.getElementById('topupModalTitle'),
+                subtitle: document.getElementById('topupModalSubtitle'),
+                body: document.getElementById('topupModalBody'),
+                error: document.getElementById('topupModalError'),
+                footer: document.getElementById('topupModalFooter'),
+            };
+        }
+
+        function setTopupModalTitle(key, fallback) {
+            const { title } = getTopupElements();
+            if (!title) {
+                return;
+            }
+            const value = t(key);
+            title.textContent = value === key ? (fallback || key) : value;
+        }
+
+        function setTopupModalSubtitle(key, fallback) {
+            const { subtitle } = getTopupElements();
+            if (!subtitle) {
+                return;
+            }
+            const value = t(key);
+            subtitle.textContent = value === key ? (fallback || key) : value;
+        }
+
+        function setTopupFooter(buttons = []) {
+            const { footer } = getTopupElements();
+            if (!footer) {
+                return;
+            }
+            footer.innerHTML = '';
+            buttons.forEach(config => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `modal-button ${config.variant || 'primary'}`;
+                if (config.id) {
+                    btn.id = config.id;
+                }
+                const label = config.labelKey ? t(config.labelKey) : config.label;
+                btn.textContent = label && label !== config.labelKey
+                    ? label
+                    : (config.fallbackLabel || config.labelKey || config.label || '');
+                if (typeof config.onClick === 'function') {
+                    btn.addEventListener('click', config.onClick);
+                }
+                if (config.disabled) {
+                    btn.disabled = true;
+                }
+                footer.appendChild(btn);
+            });
+        }
+
+        function showTopupError(messageKey, fallback) {
+            const { error } = getTopupElements();
+            if (!error) {
+                return;
+            }
+            const message = t(messageKey);
+            error.textContent = message === messageKey ? (fallback || messageKey) : message;
+            error.classList.remove('hidden');
+        }
+
+        function clearTopupError() {
+            const { error } = getTopupElements();
+            if (error) {
+                error.classList.add('hidden');
+                error.textContent = '';
+            }
+        }
+
+        async function loadPaymentMethods(force = false) {
+            if (!force && paymentMethodsCache) {
+                return paymentMethodsCache;
+            }
+            if (!force && paymentMethodsPromise) {
+                return paymentMethodsPromise;
+            }
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                throw new Error('Missing init data');
+            }
+
+            paymentMethodsPromise = fetch('/miniapp/payments/methods', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData }),
+            }).then(async response => {
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => ({}));
+                    const detail = payload?.detail;
+                    throw new Error(typeof detail === 'string' ? detail : 'Failed to load payment methods');
+                }
+                const data = await response.json().catch(() => ({}));
+                return Array.isArray(data?.methods) ? data.methods : [];
+            }).finally(() => {
+                paymentMethodsPromise = null;
+            });
+
+            try {
+                paymentMethodsCache = await paymentMethodsPromise;
+            } catch (error) {
+                paymentMethodsCache = null;
+                throw error;
+            }
+
+            return paymentMethodsCache;
+        }
+
+        function openTopupModal() {
+            const { backdrop } = getTopupElements();
+            if (!backdrop) {
+                return;
+            }
+            backdrop.classList.remove('hidden');
+            document.body.classList.add('modal-open');
+            renderTopupMethodsView();
+        }
+
+        function closeTopupModal() {
+            const { backdrop } = getTopupElements();
+            if (backdrop) {
+                backdrop.classList.add('hidden');
+            }
+            document.body.classList.remove('modal-open');
+            activePaymentMethod = null;
+            stopAllPaymentMonitors();
+            clearTopupError();
+        }
+
+        function renderTopupLoading(messageKey = 'topup.loading') {
+            const { body } = getTopupElements();
+            if (!body) {
+                return;
+            }
+            body.innerHTML = '';
+            const loadingText = document.createElement('div');
+            loadingText.className = 'amount-hint';
+            const text = t(messageKey);
+            loadingText.textContent = text === messageKey ? 'Loading…' : text;
+            body.appendChild(loadingText);
+        }
+
+        async function renderTopupMethodsView() {
+            activePaymentMethod = null;
+            stopAllPaymentMonitors();
+            clearTopupError();
+            setTopupModalTitle('topup.title', 'Top up balance');
+            setTopupModalSubtitle('topup.subtitle', 'Choose a payment method');
+            setTopupFooter([
+                {
+                    labelKey: 'topup.cancel',
+                    fallbackLabel: 'Close',
+                    variant: 'secondary',
+                    onClick: closeTopupModal,
+                },
+            ]);
+
+            try {
+                renderTopupLoading('topup.loading');
+                const methods = await loadPaymentMethods();
+                const { body } = getTopupElements();
+                if (!body) {
+                    return;
+                }
+                body.innerHTML = '';
+
+                if (!methods.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'amount-hint';
+                    const message = t('topup.error.unavailable');
+                    empty.textContent = message === 'topup.error.unavailable'
+                        ? 'Payment methods are temporarily unavailable.'
+                        : message;
+                    body.appendChild(empty);
+                    return;
+                }
+
+                const list = document.createElement('div');
+                list.className = 'payment-methods-list';
+
+                methods.forEach(method => {
+                    const card = createPaymentMethodCard(method);
+                    if (card) {
+                        list.appendChild(card);
+                    }
+                });
+
+                body.appendChild(list);
+            } catch (error) {
+                console.error('Failed to load payment methods:', error);
+                const { body } = getTopupElements();
+                if (!body) {
+                    return;
+                }
+                body.innerHTML = '';
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'amount-hint';
+                const text = t('topup.error.unavailable');
+                errorMessage.textContent = text === 'topup.error.unavailable'
+                    ? 'Payment methods are temporarily unavailable.'
+                    : text;
+                body.appendChild(errorMessage);
+            }
+        }
+
+        function createPaymentMethodCard(method) {
+            if (!method || !method.id) {
+                return null;
+            }
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'payment-method-card';
+            button.dataset.methodId = method.id;
+
+            const info = document.createElement('div');
+            info.className = 'payment-method-info';
+
+            const icon = document.createElement('div');
+            icon.className = 'payment-method-icon';
+            icon.textContent = method.icon || '💳';
+
+            const textContainer = document.createElement('div');
+            textContainer.className = 'payment-method-text';
+
+            const label = document.createElement('div');
+            label.className = 'payment-method-label';
+            const labelKey = `topup.method.${method.id}.title`;
+            const labelValue = t(labelKey);
+            label.textContent = labelValue === labelKey ? method.id : labelValue;
+
+            const description = document.createElement('div');
+            description.className = 'payment-method-description';
+            const descriptionKey = `topup.method.${method.id}.description`;
+            const descriptionValue = t(descriptionKey);
+            if (descriptionValue && descriptionValue !== descriptionKey) {
+                description.textContent = descriptionValue;
+                textContainer.appendChild(description);
+            }
+
+            textContainer.insertBefore(label, textContainer.firstChild);
+
+            info.appendChild(icon);
+            info.appendChild(textContainer);
+            button.appendChild(info);
+
+            button.addEventListener('click', () => handlePaymentMethodSelection(method));
+
+            return button;
+        }
+
+        function handlePaymentMethodSelection(method) {
+            if (!method) {
+                return;
+            }
+            if (method.requires_amount) {
+                renderTopupAmountForm(method, { selectedOption: paymentMethodSelections[method.id] });
+            } else {
+                startPaymentForMethod(method);
+            }
+        }
+
+        function renderTopupAmountForm(method, options = {}) {
+            activePaymentMethod = method;
+            stopAllPaymentMonitors();
+            clearTopupError();
+            setTopupModalTitle('topup.amount.title', 'Enter amount');
+            setTopupModalSubtitle('topup.amount.subtitle', 'Specify how much you want to top up');
+
+            const { body } = getTopupElements();
+            if (!body) {
+                return;
+            }
+
+            body.innerHTML = '';
+            const form = document.createElement('form');
+            form.className = 'amount-form';
+            form.id = 'topupAmountForm';
+
+            const currency = (method.currency || userData?.balance_currency || 'RUB').toUpperCase();
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'topupAmountInput';
+            input.className = 'amount-input';
+            input.autocomplete = 'off';
+            input.inputMode = 'decimal';
+            input.placeholder = (t('topup.amount.placeholder') || 'Amount').replace('{currency}', currency);
+
+            form.appendChild(input);
+
+            const hint = document.createElement('div');
+            hint.className = 'amount-hint';
+            const limitsText = buildAmountHint(method, currency);
+            if (limitsText) {
+                hint.textContent = limitsText;
+                form.appendChild(hint);
+            }
+
+            if (method.id === 'pal24') {
+                const optionsConfig = [
+                    {
+                        id: 'sbp',
+                        icon: '🏦',
+                        titleKey: 'topup.method.pal24.option.sbp.title',
+                        descriptionKey: 'topup.method.pal24.option.sbp.description',
+                        fallbackTitle: 'Faster Payments (SBP)',
+                        fallbackDescription: 'Instant SBP transfer with no fees.',
+                    },
+                    {
+                        id: 'card',
+                        icon: '💳',
+                        titleKey: 'topup.method.pal24.option.card.title',
+                        descriptionKey: 'topup.method.pal24.option.card.description',
+                        fallbackTitle: 'Bank card',
+                        fallbackDescription: 'Pay with a bank card via PayPalych.',
+                    },
+                ];
+
+                const selectedDefault = options.selectedOption
+                    || paymentMethodSelections[method.id]
+                    || 'sbp';
+                let currentOption = optionsConfig.some(option => option.id === selectedDefault)
+                    ? selectedDefault
+                    : 'sbp';
+                paymentMethodSelections[method.id] = currentOption;
+                form.dataset.paymentOption = currentOption;
+
+                const optionGroup = document.createElement('div');
+                optionGroup.className = 'payment-option-group';
+
+                const optionTitle = document.createElement('div');
+                optionTitle.className = 'payment-option-title';
+                const titleKey = 'topup.method.pal24.title';
+                const titleValue = t(titleKey);
+                optionTitle.textContent = titleValue === titleKey ? 'Choose payment type' : titleValue;
+                optionGroup.appendChild(optionTitle);
+
+                const optionList = document.createElement('div');
+                optionList.className = 'payment-option-list';
+
+                optionsConfig.forEach(config => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'payment-option-button';
+                    button.dataset.optionId = config.id;
+                    if (config.id === currentOption) {
+                        button.classList.add('active');
+                    }
+
+                    const icon = document.createElement('div');
+                    icon.className = 'payment-option-icon';
+                    icon.textContent = config.icon;
+
+                    const text = document.createElement('div');
+                    text.className = 'payment-option-text';
+
+                    const label = document.createElement('div');
+                    label.className = 'payment-option-label';
+                    const labelValue = t(config.titleKey);
+                    label.textContent = labelValue === config.titleKey ? config.fallbackTitle : labelValue;
+
+                    const description = document.createElement('div');
+                    description.className = 'payment-option-description';
+                    const descriptionValue = t(config.descriptionKey);
+                    const finalDescription = descriptionValue === config.descriptionKey
+                        ? config.fallbackDescription
+                        : descriptionValue;
+                    description.textContent = finalDescription;
+
+                    text.appendChild(label);
+                    if (finalDescription) {
+                        text.appendChild(description);
+                    }
+
+                    button.appendChild(icon);
+                    button.appendChild(text);
+
+                    button.addEventListener('click', () => {
+                        currentOption = config.id;
+                        paymentMethodSelections[method.id] = currentOption;
+                        form.dataset.paymentOption = currentOption;
+                        optionList.querySelectorAll('.payment-option-button').forEach(btn => {
+                            btn.classList.toggle('active', btn.dataset.optionId === currentOption);
+                        });
+                    });
+
+                    optionList.appendChild(button);
+                });
+
+                optionGroup.appendChild(optionList);
+                form.appendChild(optionGroup);
+            } else {
+                delete form.dataset.paymentOption;
+            }
+
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                submitTopupAmount(method);
+            });
+
+            body.appendChild(form);
+
+            if (options.rawInput) {
+                input.value = options.rawInput;
+            }
+
+            setTopupFooter([
+                {
+                    labelKey: 'topup.back',
+                    fallbackLabel: 'Back',
+                    variant: 'secondary',
+                    onClick: renderTopupMethodsView,
+                },
+                {
+                    labelKey: 'topup.submit',
+                    fallbackLabel: 'Continue',
+                    variant: 'primary',
+                    id: 'topupSubmitButton',
+                    onClick: () => submitTopupAmount(method),
+                },
+            ]);
+
+            input.focus({ preventScroll: true });
+        }
+
+        function buildAmountHint(method, currency) {
+            const min = Number.isFinite(method?.min_amount_kopeks)
+                ? method.min_amount_kopeks
+                : null;
+            const max = Number.isFinite(method?.max_amount_kopeks)
+                ? method.max_amount_kopeks
+                : null;
+
+            if (min && max) {
+                const template = t('topup.amount.hint.range');
+                const minLabel = formatCurrency(min / 100, currency);
+                const maxLabel = formatCurrency(max / 100, currency);
+                if (template && template !== 'topup.amount.hint.range') {
+                    return template.replace('{min}', minLabel).replace('{max}', maxLabel);
+                }
+                return `Available range: ${minLabel} — ${maxLabel}`;
+            }
+            if (min) {
+                const template = t('topup.amount.hint.single_min');
+                const minLabel = formatCurrency(min / 100, currency);
+                if (template && template !== 'topup.amount.hint.single_min') {
+                    return template.replace('{min}', minLabel);
+                }
+                return `Minimum top-up: ${minLabel}`;
+            }
+            if (max) {
+                const template = t('topup.amount.hint.single_max');
+                const maxLabel = formatCurrency(max / 100, currency);
+                if (template && template !== 'topup.amount.hint.single_max') {
+                    return template.replace('{max}', maxLabel);
+                }
+                return `Maximum top-up: ${maxLabel}`;
+            }
+            return '';
+        }
+
+        function parseAmountInput(value) {
+            if (typeof value !== 'string') {
+                return NaN;
+            }
+            const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
+            return Number.parseFloat(normalized);
+        }
+
+        async function submitTopupAmount(method) {
+            const input = document.getElementById('topupAmountInput');
+            if (!input) {
+                return;
+            }
+            const rawValue = input.value.trim();
+            const numeric = parseAmountInput(rawValue);
+            if (!Number.isFinite(numeric) || numeric <= 0) {
+                showTopupError('topup.error.amount', 'Enter a valid amount.');
+                input.focus({ preventScroll: true });
+                return;
+            }
+
+            const amountKopeks = Math.round(numeric * 100);
+            const min = Number.isFinite(method?.min_amount_kopeks) ? method.min_amount_kopeks : null;
+            const max = Number.isFinite(method?.max_amount_kopeks) ? method.max_amount_kopeks : null;
+
+            if ((min && amountKopeks < min) || (max && amountKopeks > max)) {
+                showTopupError('topup.error.amount', 'Enter a valid amount.');
+                input.focus({ preventScroll: true });
+                return;
+            }
+
+            clearTopupError();
+            const form = document.getElementById('topupAmountForm');
+            const providerOption = form?.dataset?.paymentOption || paymentMethodSelections[method.id] || null;
+            await startPaymentForMethod(method, amountKopeks, {
+                rawInput: rawValue,
+                providerOption,
+            });
+        }
+
+        async function startPaymentForMethod(method, amountKopeks = null, options = {}) {
+            clearTopupError();
+            renderTopupLoading();
+
+            const footerButtons = [];
+            if (method?.requires_amount) {
+                footerButtons.push({
+                    labelKey: 'topup.back',
+                    fallbackLabel: 'Back',
+                    variant: 'secondary',
+                    onClick: renderTopupMethodsView,
+                });
+            }
+            footerButtons.push({
+                labelKey: 'topup.cancel',
+                fallbackLabel: 'Close',
+                variant: 'secondary',
+                onClick: closeTopupModal,
+            });
+            setTopupFooter(footerButtons);
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                showTopupError('topup.error.generic', 'Unable to start payment.');
+                if (method?.requires_amount) {
+                    renderTopupAmountForm(method, {
+                        rawInput: options.rawInput,
+                        selectedOption: options.providerOption || paymentMethodSelections[method?.id],
+                    });
+                    const input = document.getElementById('topupAmountInput');
+                    if (input && options.rawInput) {
+                        input.value = options.rawInput;
+                    }
+                }
+                return;
+            }
+
+            const payload = {
+                initData,
+                method: method.id,
+            };
+            if (Number.isFinite(amountKopeks) && amountKopeks > 0) {
+                payload.amountKopeks = amountKopeks;
+            }
+            if (options.providerOption) {
+                payload.option = options.providerOption;
+            }
+
+            try {
+                const response = await fetch('/miniapp/payments/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    const detail = data?.detail;
+                    const message = typeof detail === 'string' ? detail : null;
+                    throw new Error(message || 'Failed to create payment');
+                }
+
+                const paymentUrl = data?.payment_url;
+                if (!paymentUrl) {
+                    throw new Error('Payment link is missing');
+                }
+
+                renderTopupPaymentLink(
+                    method,
+                    paymentUrl,
+                    data?.amount_kopeks ?? amountKopeks,
+                    data?.extra || {},
+                    {
+                        rawInput: options.rawInput,
+                        providerOption: options.providerOption,
+                    },
+                );
+            } catch (error) {
+                console.error('Failed to create payment:', error);
+                if (method?.requires_amount) {
+                    renderTopupAmountForm(method, {
+                        rawInput: options.rawInput,
+                        selectedOption: options.providerOption || paymentMethodSelections[method?.id],
+                    });
+                    const input = document.getElementById('topupAmountInput');
+                    if (input && options.rawInput) {
+                        input.value = options.rawInput;
+                    }
+                    showTopupError('topup.error.generic', error?.message || 'Unable to start payment.');
+                } else {
+                    await renderTopupMethodsView();
+                    showTopupError('topup.error.generic', error?.message || 'Unable to start payment.');
+                }
+            }
+        }
+
+        function renderTopupPaymentLink(method, paymentUrl, amountKopeks, extra = {}, options = {}) {
+            stopAllPaymentMonitors();
+            clearTopupError();
+            setTopupModalTitle('topup.title', 'Top up balance');
+
+            const { body } = getTopupElements();
+            if (!body) {
+                return;
+            }
+
+            const normalizedAmount = Number.isFinite(amountKopeks) ? Number(amountKopeks) : null;
+            const monitorExtra = { ...extra };
+
+            let option = null;
+            if (method.id === 'pal24') {
+                option = (options.providerOption || monitorExtra.selected_option || paymentMethodSelections[method.id] || 'sbp').toLowerCase();
+                if (!['card', 'sbp'].includes(option)) {
+                    option = 'sbp';
+                }
+                paymentMethodSelections[method.id] = option;
+                monitorExtra.selected_option = option;
+            }
+
+            const titleKey = method.id === 'pal24' && option
+                ? `topup.method.pal24.option.${option}.title`
+                : `topup.method.${method.id}.title`;
+            const titleFallback = method.id === 'pal24'
+                ? (option === 'card' ? 'Bank card payment' : 'Faster Payments (SBP)')
+                : method.id;
+            setTopupModalSubtitle(titleKey, titleFallback);
+
+            body.innerHTML = '';
+            const summary = document.createElement('div');
+            summary.className = 'payment-summary';
+
+            const titleValue = t(titleKey);
+            const title = document.createElement('div');
+            title.className = 'payment-method-label';
+            title.textContent = titleValue && titleValue !== titleKey ? titleValue : titleFallback;
+            summary.appendChild(title);
+
+            if (normalizedAmount && normalizedAmount > 0) {
+                const amount = document.createElement('div');
+                amount.className = 'payment-summary-amount';
+                const currency = (method.currency || userData?.balance_currency || 'RUB').toUpperCase();
+                amount.textContent = formatCurrency(normalizedAmount / 100, currency);
+                summary.appendChild(amount);
+
+                if (method.id === 'stars') {
+                    const starsAmount = Number.isFinite(monitorExtra?.stars_amount)
+                        ? Number(monitorExtra.stars_amount)
+                        : null;
+                    const requestedAmount = Number.isFinite(monitorExtra?.requested_amount_kopeks)
+                        ? Number(monitorExtra.requested_amount_kopeks)
+                        : null;
+
+                    if (starsAmount && starsAmount > 0) {
+                        const template = t('topup.method.stars.invoice_hint');
+                        const replacement = template && template !== 'topup.method.stars.invoice_hint'
+                            ? template.replace('{stars}', String(starsAmount))
+                            : `${starsAmount} ⭐`;
+                        const hint = document.createElement('div');
+                        hint.className = 'amount-hint';
+                        hint.textContent = replacement;
+                        summary.appendChild(hint);
+                    }
+
+                    if (
+                        requestedAmount &&
+                        requestedAmount > 0 &&
+                        requestedAmount !== normalizedAmount
+                    ) {
+                        const template = t('topup.method.stars.adjusted');
+                        const requestedLabel = formatCurrency(requestedAmount / 100, currency);
+                        const normalizedLabel = formatCurrency(normalizedAmount / 100, currency);
+                        let replacement = template;
+                        if (replacement && replacement !== 'topup.method.stars.adjusted') {
+                            replacement = replacement
+                                .replace('{requested}', requestedLabel)
+                                .replace('{amount}', normalizedLabel)
+                                .replace('{stars}', String(starsAmount ?? ''));
+                        } else {
+                            replacement = `Requested ${requestedLabel}, invoice ${normalizedLabel}`;
+                        }
+                        const hint = document.createElement('div');
+                        hint.className = 'amount-hint warning';
+                        hint.textContent = replacement;
+                        summary.appendChild(hint);
+                    }
+                }
+            }
+
+            if (Number.isFinite(monitorExtra?.amount_usd) && monitorExtra.amount_usd > 0) {
+                const usdAmount = document.createElement('div');
+                usdAmount.className = 'amount-hint';
+                usdAmount.textContent = `≈ ${formatCurrency(monitorExtra.amount_usd, 'USD')}`;
+                summary.appendChild(usdAmount);
+            }
+
+            const descriptionKey = method.id === 'pal24' && option
+                ? `topup.method.pal24.option.${option}.description`
+                : `topup.method.${method.id}.description`;
+            const descriptionValue = t(descriptionKey);
+            if (descriptionValue && descriptionValue !== descriptionKey) {
+                const description = document.createElement('div');
+                description.className = 'amount-hint';
+                description.textContent = descriptionValue;
+                summary.appendChild(description);
+            }
+
+            body.appendChild(summary);
+
+            let effectiveUrl = paymentUrl;
+            if (method.id === 'pal24') {
+                const urls = [];
+                if (option === 'sbp') {
+                    urls.push(monitorExtra.sbp_url, monitorExtra.transfer_url);
+                }
+                if (option === 'card') {
+                    urls.push(monitorExtra.card_url);
+                }
+                urls.push(
+                    monitorExtra.link_url,
+                    monitorExtra.link_page_url,
+                    monitorExtra.transfer_url,
+                    paymentUrl,
+                );
+                effectiveUrl = urls.find(url => typeof url === 'string' && url.length) || paymentUrl;
+            }
+
+            const statusView = createPaymentStatusView();
+            body.appendChild(statusView.element);
+            updatePaymentStatusView(statusView, { state: 'pending' });
+
+            startPaymentStatusMonitor({
+                method,
+                amountKopeks: normalizedAmount,
+                extra: monitorExtra,
+                statusView,
+                paymentUrl: effectiveUrl,
+                originalUrl: paymentUrl,
+                rawInput: options.rawInput || null,
+                option,
+            });
         }
 
         function updateReferralToggleState() {
@@ -6486,6 +9288,1161 @@
             }
         }
 
+        function hasPaidSubscription() {
+            if (!userData?.user) {
+                return false;
+            }
+
+            const typeRaw = String(userData.subscription_type || '').toLowerCase();
+            if (typeRaw === 'trial') {
+                return false;
+            }
+            if (typeRaw === 'paid') {
+                return true;
+            }
+
+            if (userData.user.has_active_subscription === false) {
+                return false;
+            }
+
+            const statusRaw = String(
+                userData.user.subscription_actual_status
+                || userData.user.subscription_status
+                || ''
+            ).toLowerCase();
+            if (['trial', 'expired', 'disabled'].includes(statusRaw)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        function normalizeServerEntry(entry) {
+            if (!entry) {
+                return null;
+            }
+            if (typeof entry === 'string') {
+                const normalized = entry.trim();
+                if (!normalized) {
+                    return null;
+                }
+                return { uuid: normalized, name: normalized };
+            }
+            if (typeof entry !== 'object') {
+                return null;
+            }
+            const uuid = entry.uuid
+                || entry.id
+                || entry.squad_uuid
+                || entry.short_uuid
+                || entry.shortUuid
+                || entry.value
+                || null;
+            const name = entry.name
+                || entry.title
+                || entry.display_name
+                || entry.displayName
+                || entry.label
+                || uuid
+                || '';
+            if (!uuid && !name) {
+                return null;
+            }
+            return {
+                uuid: uuid || name,
+                name: name || uuid || '',
+            };
+        }
+
+        function resetSubscriptionSettingsSelections(data) {
+            if (!data) {
+                subscriptionSettingsSelections.servers = new Set();
+                subscriptionSettingsSelections.traffic = null;
+                subscriptionSettingsSelections.devices = null;
+                return;
+            }
+
+            const serverSet = data.current?.serverSet instanceof Set
+                ? data.current.serverSet
+                : new Set();
+            subscriptionSettingsSelections.servers = new Set(Array.from(serverSet));
+            subscriptionSettingsSelections.traffic = data.traffic?.currentValue ?? null;
+            subscriptionSettingsSelections.devices = data.devices?.current ?? null;
+        }
+
+        function normalizeSubscriptionSettings(payload) {
+            if (!payload || typeof payload !== 'object') {
+                return null;
+            }
+
+            const root = payload.settings || payload.data || payload;
+            if (!root || typeof root !== 'object') {
+                return null;
+            }
+
+            const currentInfo = root.current || root.subscription || {};
+            const serversInfo = root.servers || root.countries || {};
+            const trafficInfo = root.traffic || root.traffic_options || root.trafficOptions || {};
+            const devicesInfo = root.devices || root.device_options || root.deviceOptions || {};
+
+            const currentServersRaw = ensureArray(
+                currentInfo.servers
+                || currentInfo.connected_servers
+                || root.current_servers
+                || root.connected_servers
+                || userData?.connected_servers
+            );
+            const normalizedCurrentServers = currentServersRaw
+                .map(normalizeServerEntry)
+                .filter(Boolean);
+            const serverSet = new Set(
+                normalizedCurrentServers
+                    .map(server => server.uuid)
+                    .filter(Boolean)
+            );
+
+            const availableServersRaw = ensureArray(
+                serversInfo.available
+                || serversInfo.options
+                || root.available_servers
+                || root.available_squads
+                || []
+            );
+            const normalizedAvailableServers = availableServersRaw
+                .map(entry => {
+                    const base = normalizeServerEntry(entry);
+                    if (!base) {
+                        return null;
+                    }
+                    return {
+                        uuid: base.uuid,
+                        name: base.name,
+                        priceKopeks: coercePositiveInt(
+                            entry.price_kopeks ?? entry.priceKopeks ?? entry.price ?? entry.cost,
+                            null
+                        ),
+                        priceLabel: entry.price_label || entry.priceLabel || null,
+                        discountPercent: coercePositiveInt(
+                            entry.discount_percent ?? entry.discountPercent ?? entry.discount,
+                            null
+                        ),
+                        isConnected: coerceBoolean(
+                            entry.is_connected ?? entry.connected ?? entry.isSelected ?? entry.selected ?? serverSet.has(base.uuid),
+                            false
+                        ),
+                        isAvailable: coerceBoolean(
+                            entry.is_available ?? entry.available ?? entry.enabled ?? entry.selectable ?? true,
+                            true
+                        ),
+                        disabledReason: entry.disabled_reason || entry.reason || null,
+                    };
+                })
+                .filter(Boolean);
+
+            const trafficOptionsRaw = ensureArray(
+                trafficInfo.options
+                || root.available_traffic
+                || root.traffic_options
+                || []
+            );
+            const normalizedTrafficOptions = trafficOptionsRaw
+                .map(option => {
+                    const value = coerceNumber(
+                        option.value ?? option.gb ?? option.limit ?? option.traffic_gb ?? option.trafficGb,
+                        null
+                    );
+                    return {
+                        value,
+                        label: option.label || option.title || (value !== null ? formatTrafficLimit(value) : ''),
+                        priceKopeks: coercePositiveInt(option.price_kopeks ?? option.priceKopeks ?? option.price ?? null, null),
+                        priceLabel: option.price_label || option.priceLabel || null,
+                        isCurrent: coerceBoolean(option.is_current ?? option.current, false),
+                        isAvailable: coerceBoolean(option.is_available ?? option.available ?? option.enabled ?? true, true),
+                        description: option.description || null,
+                    };
+                })
+                .filter(option => option.value !== null || option.label)
+                .filter(option => option.isAvailable !== false || option.isCurrent);
+
+            const currentTrafficLimit = coerceNumber(
+                currentInfo.traffic_limit_gb
+                ?? currentInfo.traffic
+                ?? root.current_traffic_gb
+                ?? userData?.user?.traffic_limit_gb,
+                null
+            );
+            const currentTrafficLabel = currentInfo.traffic_limit_label
+                || trafficInfo.current_label
+                || trafficInfo.currentLabel
+                || userData?.user?.traffic_limit_label
+                || (currentTrafficLimit !== null ? formatTrafficLimit(currentTrafficLimit) : '');
+
+            let currentTrafficValue = normalizedTrafficOptions.find(option => option.isCurrent) || null;
+            if (!currentTrafficValue && currentTrafficLimit !== null) {
+                currentTrafficValue = normalizedTrafficOptions.find(
+                    option => Number(option.value) === Number(currentTrafficLimit)
+                ) || null;
+            }
+
+            const devicesOptionsRaw = ensureArray(
+                devicesInfo.options
+                || root.available_devices
+                || root.device_options
+                || []
+            );
+            const normalizedDeviceOptions = devicesOptionsRaw
+                .map(option => {
+                    const value = coercePositiveInt(option.value ?? option.devices ?? option.count ?? option.limit, null);
+                    return {
+                        value,
+                        label: option.label || option.title || (value !== null ? String(value) : ''),
+                        priceKopeks: coercePositiveInt(option.price_kopeks ?? option.priceKopeks ?? option.price ?? null, null),
+                        priceLabel: option.price_label || option.priceLabel || null,
+                    };
+                })
+                .filter(option => option.value !== null);
+
+            const currentDeviceLimit = coercePositiveInt(
+                devicesInfo.current
+                ?? currentInfo.device_limit
+                ?? root.current_device_limit
+                ?? userData?.user?.device_limit,
+                0
+            );
+
+            return {
+                raw: payload,
+                subscriptionId: root.subscription_id
+                    ?? payload.subscription_id
+                    ?? payload.subscriptionId
+                    ?? userData?.subscription_id
+                    ?? userData?.subscriptionId
+                    ?? null,
+                currency: (root.currency || payload.currency || userData?.balance_currency || 'RUB').toString().toUpperCase(),
+                billing: {
+                    monthsRemaining: coercePositiveInt(
+                        root.billing?.months_remaining
+                        ?? root.billing?.monthsRemaining
+                        ?? root.billing?.months,
+                        null
+                    ),
+                    periodDays: coercePositiveInt(
+                        root.billing?.period_hint_days
+                        ?? root.billing?.periodHintDays
+                        ?? null,
+                        null
+                    ),
+                    renewsAt: root.billing?.renews_at
+                        ?? root.billing?.renewsAt
+                        ?? root.billing?.renewal
+                        ?? null,
+                },
+                current: {
+                    servers: normalizedCurrentServers,
+                    serverSet,
+                    trafficLimitGb: currentTrafficLimit,
+                    trafficLabel: currentTrafficLabel,
+                    deviceLimit: currentDeviceLimit,
+                },
+                servers: {
+                    available: normalizedAvailableServers,
+                    min: coercePositiveInt(
+                        serversInfo.min ?? serversInfo.min_selectable ?? serversInfo.minRequired ?? root.min_servers,
+                        0
+                    ) || 0,
+                    max: coercePositiveInt(
+                        serversInfo.max ?? serversInfo.max_selectable ?? serversInfo.maxAllowed ?? root.max_servers,
+                        0
+                    ) || 0,
+                    canUpdate: coerceBoolean(
+                        serversInfo.can_update ?? serversInfo.enabled ?? serversInfo.allow_update ?? true,
+                        true
+                    ),
+                    hint: serversInfo.hint || null,
+                },
+                traffic: {
+                    options: normalizedTrafficOptions,
+                    canUpdate: coerceBoolean(
+                        trafficInfo.can_update ?? trafficInfo.enabled ?? trafficInfo.allow_update ?? true,
+                        true
+                    ),
+                    currentValue: currentTrafficValue
+                        ? currentTrafficValue.value
+                        : (currentTrafficLimit !== null ? currentTrafficLimit : null),
+                },
+                devices: {
+                    options: normalizedDeviceOptions,
+                    canUpdate: coerceBoolean(
+                        devicesInfo.can_update ?? devicesInfo.enabled ?? devicesInfo.allow_update ?? true,
+                        true
+                    ),
+                    min: coercePositiveInt(devicesInfo.min ?? devicesInfo.min_devices ?? devicesInfo.min_limit, 0) || 0,
+                    max: coercePositiveInt(devicesInfo.max ?? devicesInfo.max_devices ?? devicesInfo.max_limit, 0) || 0,
+                    step: coercePositiveInt(devicesInfo.step ?? devicesInfo.increment ?? 1, 1) || 1,
+                    current: currentDeviceLimit,
+                },
+            };
+        }
+
+        function extractSettingsError(payload, status) {
+            if (status === 401) {
+                return t('subscription_settings.error.unauthorized');
+            }
+            if (!payload || typeof payload !== 'object') {
+                return t('subscription_settings.error.generic');
+            }
+            if (typeof payload.detail === 'string') {
+                return payload.detail;
+            }
+            if (payload.detail && typeof payload.detail === 'object') {
+                if (typeof payload.detail.message === 'string') {
+                    return payload.detail.message;
+                }
+                if (typeof payload.detail.error === 'string') {
+                    return payload.detail.error;
+                }
+            }
+            if (typeof payload.message === 'string') {
+                return payload.message;
+            }
+            if (typeof payload.error === 'string') {
+                return payload.error;
+            }
+            return t('subscription_settings.error.generic');
+        }
+
+        function resolveSettingsErrorMessage(error, fallbackKey = 'subscription_settings.error.generic') {
+            if (!error) {
+                return t(fallbackKey);
+            }
+            if (typeof error === 'string') {
+                return error;
+            }
+            if (typeof error.message === 'string' && error.message.trim()) {
+                return error.message;
+            }
+            if (error.detail) {
+                if (typeof error.detail === 'string' && error.detail.trim()) {
+                    return error.detail;
+                }
+                if (typeof error.detail.message === 'string' && error.detail.message.trim()) {
+                    return error.detail.message;
+                }
+            }
+            if (error.status === 401) {
+                return t('subscription_settings.error.unauthorized');
+            }
+            return t(fallbackKey);
+        }
+
+        function setSubscriptionSettingsActionLoading(section, isLoading) {
+            const ids = {
+                servers: 'subscriptionSettingsServersApply',
+                traffic: 'subscriptionSettingsTrafficApply',
+                devices: 'subscriptionSettingsDevicesApply',
+            };
+            const buttonId = ids[section];
+            if (!buttonId) {
+                return;
+            }
+            const button = document.getElementById(buttonId);
+            if (!button) {
+                return;
+            }
+            if (isLoading) {
+                if (!button.dataset.originalLabel) {
+                    button.dataset.originalLabel = button.textContent;
+                }
+                button.textContent = t('subscription_settings.pending_action');
+                button.disabled = true;
+                return;
+            }
+            const original = button.dataset.originalLabel;
+            const key = button.getAttribute('data-i18n');
+            if (key) {
+                const translated = t(key);
+                if (translated && translated !== key) {
+                    button.textContent = translated;
+                } else if (original) {
+                    button.textContent = original;
+                }
+            } else if (original) {
+                button.textContent = original;
+            }
+            delete button.dataset.originalLabel;
+            button.disabled = false;
+        }
+
+        function handleSubscriptionSettingsError(error) {
+            const message = resolveSettingsErrorMessage(error);
+            showPopup(message, t('subscription_settings.title') || 'Subscription settings');
+        }
+
+        function ensureSubscriptionSettingsLoaded(options = {}) {
+            const { force = false } = options;
+            if (!hasPaidSubscription()) {
+                subscriptionSettingsData = null;
+                subscriptionSettingsPromise = null;
+                subscriptionSettingsError = null;
+                subscriptionSettingsLoading = false;
+                resetSubscriptionSettingsSelections(null);
+                return Promise.resolve(null);
+            }
+
+            if (!force) {
+                if (subscriptionSettingsPromise) {
+                    return subscriptionSettingsPromise;
+                }
+                if (subscriptionSettingsData && !subscriptionSettingsError) {
+                    return Promise.resolve(subscriptionSettingsData);
+                }
+            }
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                const error = createError('Authorization Error', t('subscription_settings.error.unauthorized'));
+                subscriptionSettingsError = error;
+                subscriptionSettingsLoading = false;
+                renderSubscriptionSettingsCard();
+                return Promise.reject(error);
+            }
+
+            subscriptionSettingsLoading = true;
+            subscriptionSettingsError = null;
+            renderSubscriptionSettingsCard();
+
+            const payload = {
+                initData,
+                subscription_id: userData?.subscription_id ?? userData?.subscriptionId ?? null,
+            };
+
+            const request = fetch('/miniapp/subscription/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            }).then(async response => {
+                const body = await parseJsonSafe(response);
+                if (!response.ok || (body && body.success === false)) {
+                    const message = extractSettingsError(body, response.status);
+                    throw createError('Subscription settings error', message, response.status);
+                }
+                const normalized = normalizeSubscriptionSettings(body);
+                subscriptionSettingsData = normalized;
+                subscriptionSettingsError = null;
+                subscriptionSettingsLoading = false;
+                subscriptionSettingsPromise = null;
+                resetSubscriptionSettingsSelections(normalized);
+                renderSubscriptionSettingsCard();
+                return normalized;
+            }).catch(error => {
+                subscriptionSettingsError = error;
+                subscriptionSettingsLoading = false;
+                subscriptionSettingsPromise = null;
+                renderSubscriptionSettingsCard();
+                throw error;
+            });
+
+            subscriptionSettingsPromise = request;
+            return request;
+        }
+
+        function renderSubscriptionSettingsSummary(data) {
+            const summary = document.getElementById('subscriptionSettingsSummary');
+            if (!summary) {
+                return;
+            }
+
+            summary.innerHTML = '';
+
+            if (!data) {
+                return;
+            }
+
+            const fragments = [];
+
+            const serversCount = data.current?.servers?.length
+                ?? ensureArray(userData?.connected_servers).length
+                ?? 0;
+            if (serversCount) {
+                const key = serversCount === 1
+                    ? 'subscription_settings.summary.servers_one'
+                    : 'subscription_settings.summary.servers';
+                const chip = document.createElement('div');
+                chip.className = 'subscription-settings-chip';
+                chip.textContent = t(key).replace('{count}', String(serversCount));
+                fragments.push(chip);
+            }
+
+            const trafficLabel = data.current?.trafficLabel || userData?.user?.traffic_limit_label || '';
+            if (trafficLabel) {
+                const chip = document.createElement('div');
+                chip.className = 'subscription-settings-chip';
+                chip.textContent = t('subscription_settings.summary.traffic').replace('{amount}', trafficLabel);
+                fragments.push(chip);
+            }
+
+            const deviceLimit = data.current?.deviceLimit ?? coercePositiveInt(userData?.user?.device_limit, null);
+            if (deviceLimit !== null && deviceLimit !== undefined) {
+                const chip = document.createElement('div');
+                chip.className = 'subscription-settings-chip';
+                if (deviceLimit > 0) {
+                    const key = deviceLimit === 1
+                        ? 'subscription_settings.summary.devices_one'
+                        : 'subscription_settings.summary.devices';
+                    chip.textContent = t(key).replace('{count}', String(deviceLimit));
+                } else {
+                    chip.textContent = t('subscription_settings.summary.devices').replace(
+                        '{count}',
+                        t('subscription_settings.summary.unlimited')
+                    );
+                }
+                fragments.push(chip);
+            }
+
+            fragments.forEach(fragment => summary.appendChild(fragment));
+        }
+
+        function renderSubscriptionSettingsCard() {
+            const card = document.getElementById('subscriptionSettingsCard');
+            if (!card) {
+                return;
+            }
+
+            const shouldShow = hasPaidSubscription();
+            card.classList.toggle('hidden', !shouldShow);
+            if (!shouldShow) {
+                return;
+            }
+
+            const loadingBlock = document.getElementById('subscriptionSettingsLoading');
+            const errorBlock = document.getElementById('subscriptionSettingsError');
+            const contentBlock = document.getElementById('subscriptionSettingsContent');
+            const statusText = document.getElementById('subscriptionSettingsStatus');
+
+            if (subscriptionSettingsLoading) {
+                loadingBlock?.classList.remove('hidden');
+                errorBlock?.classList.add('hidden');
+                contentBlock?.classList.remove('hidden');
+                if (statusText) {
+                    statusText.textContent = t('subscription_settings.status.loading');
+                    statusText.classList.remove('hidden');
+                }
+                renderSubscriptionSettingsSummary(subscriptionSettingsData);
+                return;
+            }
+
+            loadingBlock?.classList.add('hidden');
+            statusText?.classList.add('hidden');
+
+            if (subscriptionSettingsError) {
+                contentBlock?.classList.add('hidden');
+                if (errorBlock) {
+                    const errorText = document.getElementById('subscriptionSettingsErrorText');
+                    if (errorText) {
+                        errorText.textContent = resolveSettingsErrorMessage(subscriptionSettingsError);
+                    }
+                    errorBlock.classList.remove('hidden');
+                }
+                return;
+            }
+
+            errorBlock?.classList.add('hidden');
+            contentBlock?.classList.remove('hidden');
+
+            if (!subscriptionSettingsData) {
+                ensureSubscriptionSettingsLoaded().catch(error => {
+                    console.warn('Failed to load subscription settings:', error);
+                });
+                renderSubscriptionSettingsSummary(null);
+                return;
+            }
+
+            renderSubscriptionSettingsSummary(subscriptionSettingsData);
+            renderSubscriptionSettingsServers(subscriptionSettingsData);
+            renderSubscriptionSettingsTraffic(subscriptionSettingsData);
+            renderSubscriptionSettingsDevices(subscriptionSettingsData);
+        }
+
+        function setupSubscriptionSettingsEvents() {
+            document.getElementById('subscriptionSettingsRetry')?.addEventListener('click', () => {
+                ensureSubscriptionSettingsLoaded({ force: true }).catch(error => {
+                    handleSubscriptionSettingsError(error);
+                });
+            });
+            document.getElementById('subscriptionSettingsServersApply')?.addEventListener('click', submitSubscriptionServersChange);
+            document.getElementById('subscriptionSettingsTrafficApply')?.addEventListener('click', submitSubscriptionTrafficChange);
+            document.getElementById('subscriptionSettingsDevicesApply')?.addEventListener('click', submitSubscriptionDevicesChange);
+        }
+
+        function resolveServerPriceLabel(option, currency) {
+            if (!option) {
+                return '';
+            }
+            if (option.priceLabel) {
+                return option.priceLabel;
+            }
+            if (option.priceKopeks === null || option.priceKopeks === undefined) {
+                return '';
+            }
+            const price = coercePositiveInt(option.priceKopeks, null);
+            if (price === null) {
+                return '';
+            }
+            if (price === 0) {
+                return t('subscription_settings.price.included');
+            }
+            return formatPriceFromKopeks(price, currency);
+        }
+
+        function renderSubscriptionSettingsServers(data) {
+            const list = document.getElementById('subscriptionSettingsServersList');
+            const emptyState = document.getElementById('subscriptionSettingsServersEmpty');
+            const disabledNote = document.getElementById('subscriptionSettingsServersDisabled');
+            const applyButton = document.getElementById('subscriptionSettingsServersApply');
+            const hintElement = document.getElementById('subscriptionSettingsServersHint');
+            const metaElement = document.getElementById('subscriptionSettingsServersMeta');
+
+            if (!list || !applyButton) {
+                return;
+            }
+
+            const available = ensureArray(data?.servers?.available);
+            const minSelectable = coercePositiveInt(data?.servers?.min, 0) || 0;
+            const maxSelectable = coercePositiveInt(data?.servers?.max, 0) || 0;
+            const canUpdate = data?.servers?.canUpdate !== false;
+            const hint = data?.servers?.hint || t('subscription_settings.servers.hint');
+
+            const selectionSet = subscriptionSettingsSelections.servers instanceof Set
+                ? new Set(subscriptionSettingsSelections.servers)
+                : new Set();
+            const currentSet = data.current?.serverSet instanceof Set
+                ? data.current.serverSet
+                : new Set();
+
+            list.innerHTML = '';
+
+            if (metaElement) {
+                const selectedCount = selectionSet.size || currentSet.size;
+                metaElement.textContent = t('subscription_settings.servers.limit').replace('{count}', String(selectedCount));
+            }
+
+            if (hintElement) {
+                hintElement.textContent = hint || '';
+            }
+
+            if (!available.length) {
+                emptyState?.classList.remove('hidden');
+                disabledNote?.classList.toggle('hidden', canUpdate);
+                applyButton.disabled = true;
+                return;
+            }
+
+            emptyState?.classList.add('hidden');
+            disabledNote?.classList.toggle('hidden', canUpdate);
+
+            available.forEach(option => {
+                if (!option) {
+                    return;
+                }
+                const isSelected = selectionSet.has(option.uuid) || (!selectionSet.size && option.isConnected);
+                if (isSelected && option.uuid && !selectionSet.has(option.uuid)) {
+                    selectionSet.add(option.uuid);
+                }
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'subscription-settings-toggle';
+                if (isSelected) {
+                    button.classList.add('active');
+                }
+                const isOptionEnabled = canUpdate && coerceBoolean(option.isAvailable, true);
+                if (!isOptionEnabled) {
+                    button.classList.add('disabled');
+                }
+
+                const label = document.createElement('div');
+                label.className = 'subscription-settings-toggle-label';
+
+                const title = document.createElement('div');
+                title.className = 'subscription-settings-toggle-title';
+                title.textContent = option.name || option.uuid || t('values.not_available');
+                label.appendChild(title);
+
+                const meta = resolveServerPriceLabel(option, data.currency);
+                if (meta) {
+                    const metaSpan = document.createElement('div');
+                    metaSpan.className = 'subscription-settings-toggle-meta';
+                    metaSpan.textContent = meta;
+                    label.appendChild(metaSpan);
+                }
+
+                button.appendChild(label);
+
+                if (isOptionEnabled && option.uuid) {
+                    button.addEventListener('click', () => {
+                        if (subscriptionSettingsAction === 'servers') {
+                            return;
+                        }
+                        if (selectionSet.has(option.uuid)) {
+                            selectionSet.delete(option.uuid);
+                        } else {
+                            selectionSet.add(option.uuid);
+                        }
+                        subscriptionSettingsSelections.servers = new Set(selectionSet);
+                        renderSubscriptionSettingsServers(data);
+                    });
+                }
+
+                list.appendChild(button);
+            });
+
+            subscriptionSettingsSelections.servers = new Set(selectionSet);
+
+            const selectedCount = selectionSet.size;
+            const belowMin = selectedCount < (minSelectable || 1);
+            const aboveMax = maxSelectable && selectedCount > maxSelectable;
+            const hasChanges = !isSameSet(selectionSet, currentSet);
+            const isLoading = subscriptionSettingsAction === 'servers';
+
+            if (hintElement && (belowMin || aboveMax)) {
+                hintElement.textContent = t('subscription_settings.error.validation');
+            }
+
+            applyButton.disabled = isLoading
+                || !canUpdate
+                || !hasChanges
+                || selectedCount === 0
+                || belowMin
+                || aboveMax;
+        }
+
+        function renderSubscriptionSettingsTraffic(data) {
+            const list = document.getElementById('subscriptionSettingsTrafficList');
+            const emptyState = document.getElementById('subscriptionSettingsTrafficEmpty');
+            const disabledNote = document.getElementById('subscriptionSettingsTrafficDisabled');
+            const applyButton = document.getElementById('subscriptionSettingsTrafficApply');
+            const hintElement = document.getElementById('subscriptionSettingsTrafficHint');
+            const metaElement = document.getElementById('subscriptionSettingsTrafficMeta');
+
+            if (!list || !applyButton) {
+                return;
+            }
+
+            const options = ensureArray(data?.traffic?.options);
+            const canUpdate = data?.traffic?.canUpdate !== false;
+            const currentValue = data?.traffic?.currentValue;
+            const selectedValue = subscriptionSettingsSelections.traffic !== null
+                ? subscriptionSettingsSelections.traffic
+                : currentValue;
+
+            list.innerHTML = '';
+
+            if (metaElement) {
+                const currentLabel = data.current?.trafficLabel || '';
+                metaElement.textContent = currentLabel
+                    ? t('subscription_settings.traffic.current').replace('{limit}', currentLabel)
+                    : '';
+            }
+
+            if (!options.length) {
+                emptyState?.classList.remove('hidden');
+                disabledNote?.classList.toggle('hidden', canUpdate);
+                applyButton.disabled = true;
+                if (hintElement) {
+                    hintElement.textContent = '';
+                }
+                return;
+            }
+
+            emptyState?.classList.add('hidden');
+            disabledNote?.classList.toggle('hidden', canUpdate);
+
+            options.forEach(option => {
+                if (!option) {
+                    return;
+                }
+                const value = option.value;
+                const label = option.label || (value !== null ? formatTrafficLimit(value) : t('values.not_available'));
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'subscription-settings-toggle';
+                if (value === selectedValue) {
+                    button.classList.add('active');
+                }
+                const isOptionEnabled = canUpdate && coerceBoolean(option.isAvailable, true);
+                if (!isOptionEnabled) {
+                    button.classList.add('disabled');
+                }
+
+                const labelContainer = document.createElement('div');
+                labelContainer.className = 'subscription-settings-toggle-label';
+
+                const title = document.createElement('div');
+                title.className = 'subscription-settings-toggle-title';
+                title.textContent = label;
+                labelContainer.appendChild(title);
+
+                const meta = option.priceLabel
+                    || (option.priceKopeks !== null && option.priceKopeks !== undefined
+                        ? resolveServerPriceLabel(option, data.currency)
+                        : '');
+                if (meta) {
+                    const metaSpan = document.createElement('div');
+                    metaSpan.className = 'subscription-settings-toggle-meta';
+                    metaSpan.textContent = meta;
+                    labelContainer.appendChild(metaSpan);
+                }
+
+                button.appendChild(labelContainer);
+
+                if (isOptionEnabled && value !== null) {
+                    button.addEventListener('click', () => {
+                        if (subscriptionSettingsAction === 'traffic') {
+                            return;
+                        }
+                        subscriptionSettingsSelections.traffic = value;
+                        renderSubscriptionSettingsTraffic(data);
+                    });
+                }
+
+                list.appendChild(button);
+            });
+
+            if (hintElement) {
+                hintElement.textContent = '';
+            }
+
+            const isLoading = subscriptionSettingsAction === 'traffic';
+            const changed = selectedValue !== null && selectedValue !== currentValue;
+            applyButton.disabled = isLoading || !canUpdate || !changed;
+        }
+
+        function resolveDevicePriceLabel(value, devicesInfo, currency) {
+            const options = ensureArray(devicesInfo?.options);
+            const matched = options.find(option => coercePositiveInt(option.value, null) === value);
+            if (matched) {
+                if (matched.priceLabel) {
+                    return matched.priceLabel;
+                }
+                if (matched.priceKopeks !== null && matched.priceKopeks !== undefined) {
+                    const normalized = coercePositiveInt(matched.priceKopeks, null);
+                    if (normalized !== null) {
+                        if (normalized === 0) {
+                            return t('subscription_settings.price.included');
+                        }
+                        return formatPriceFromKopeks(normalized, currency);
+                    }
+                }
+            }
+
+            const basePrice = coercePositiveInt(
+                devicesInfo?.priceKopeks ?? devicesInfo?.price_kopeks ?? devicesInfo?.price ?? null,
+                null
+            );
+            if (basePrice !== null) {
+                if (basePrice === 0) {
+                    return t('subscription_settings.price.included');
+                }
+                return formatPriceFromKopeks(basePrice, currency);
+            }
+
+            return '';
+        }
+
+        function renderSubscriptionSettingsDevices(data) {
+            const decreaseBtn = document.getElementById('subscriptionSettingsDevicesDecrease');
+            const increaseBtn = document.getElementById('subscriptionSettingsDevicesIncrease');
+            const valueElement = document.getElementById('subscriptionSettingsDevicesValue');
+            const priceElement = document.getElementById('subscriptionSettingsDevicesPrice');
+            const disabledNote = document.getElementById('subscriptionSettingsDevicesDisabled');
+            const applyButton = document.getElementById('subscriptionSettingsDevicesApply');
+            const hintElement = document.getElementById('subscriptionSettingsDevicesHint');
+
+            if (!decreaseBtn || !increaseBtn || !valueElement || !applyButton) {
+                return;
+            }
+
+            const devicesInfo = data?.devices || {};
+            const canUpdate = devicesInfo.canUpdate !== false;
+            const min = coercePositiveInt(devicesInfo.min, 0) || 0;
+            const max = coercePositiveInt(devicesInfo.max, 0) || 0;
+            const step = coercePositiveInt(devicesInfo.step, 1) || 1;
+            const current = coercePositiveInt(devicesInfo.current, coercePositiveInt(data?.current?.deviceLimit, 0)) || 0;
+
+            if (subscriptionSettingsSelections.devices == null) {
+                subscriptionSettingsSelections.devices = current;
+            }
+
+            const selected = coercePositiveInt(subscriptionSettingsSelections.devices, current);
+            subscriptionSettingsSelections.devices = selected;
+
+            const unlimited = selected <= 0;
+            valueElement.textContent = unlimited
+                ? t('subscription_settings.devices.unlimited')
+                : t(selected === 1 ? 'subscription_settings.devices.value_one' : 'subscription_settings.devices.value').replace('{count}', String(selected));
+
+            if (priceElement) {
+                priceElement.textContent = resolveDevicePriceLabel(selected, devicesInfo, data.currency);
+            }
+
+            disabledNote?.classList.toggle('hidden', canUpdate);
+
+            const isLoading = subscriptionSettingsAction === 'devices';
+            const canDecrease = canUpdate && !isLoading && selected > min;
+            const canIncrease = canUpdate && !isLoading && (!max || selected < max);
+
+            decreaseBtn.disabled = !canDecrease;
+            increaseBtn.disabled = !canIncrease;
+
+            decreaseBtn.onclick = () => {
+                if (!canDecrease) {
+                    return;
+                }
+                const next = Math.max(min, selected - step);
+                subscriptionSettingsSelections.devices = next;
+                renderSubscriptionSettingsDevices(data);
+            };
+
+            increaseBtn.onclick = () => {
+                if (!canIncrease) {
+                    return;
+                }
+                const limit = max > 0 ? max : selected + step;
+                const next = Math.min(limit, selected + step);
+                subscriptionSettingsSelections.devices = next;
+                renderSubscriptionSettingsDevices(data);
+            };
+
+            const changed = selected !== current;
+            applyButton.disabled = isLoading || !canUpdate || !changed;
+            if (hintElement) {
+                hintElement.textContent = '';
+            }
+        }
+
+        async function submitSubscriptionServersChange() {
+            if (subscriptionSettingsAction) {
+                return;
+            }
+            const data = subscriptionSettingsData;
+            if (!data) {
+                try {
+                    await ensureSubscriptionSettingsLoaded({ force: true });
+                } catch (error) {
+                    handleSubscriptionSettingsError(error);
+                }
+                return;
+            }
+            const selectionSet = subscriptionSettingsSelections.servers instanceof Set
+                ? subscriptionSettingsSelections.servers
+                : new Set();
+            const selected = Array.from(selectionSet);
+            const minSelectable = coercePositiveInt(data.servers?.min, 0) || 0;
+            const maxSelectable = coercePositiveInt(data.servers?.max, 0) || 0;
+            const currentSet = data.current?.serverSet instanceof Set ? data.current.serverSet : new Set();
+
+            if (!selected.length || selected.length < (minSelectable || 1) || (maxSelectable && selected.length > maxSelectable)) {
+                handleSubscriptionSettingsError(createError('Validation', t('subscription_settings.error.validation')));
+                return;
+            }
+            if (isSameSet(new Set(selected), currentSet)) {
+                return;
+            }
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                handleSubscriptionSettingsError(createError('Auth', t('subscription_settings.error.unauthorized')));
+                return;
+            }
+
+            const added = selected.filter(uuid => !currentSet.has(uuid));
+            const removed = Array.from(currentSet).filter(uuid => !selected.includes(uuid));
+            const proceedServers = await confirmSubscriptionServersUpdate(data, { added, removed });
+            if (!proceedServers) {
+                return;
+            }
+
+            const payload = {
+                initData,
+                squads: selected,
+                servers: selected,
+                squad_uuids: selected,
+                server_uuids: selected,
+                subscription_id: data.subscriptionId || userData?.subscription_id || userData?.subscriptionId || null,
+            };
+
+            subscriptionSettingsAction = 'servers';
+            setSubscriptionSettingsActionLoading('servers', true);
+
+            try {
+                const response = await fetch('/miniapp/subscription/servers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const body = await parseJsonSafe(response);
+                if (!response.ok || (body && body.success === false)) {
+                    const message = extractSettingsError(body, response.status);
+                    throw createError('Subscription settings error', message, response.status);
+                }
+                showPopup(t('subscription_settings.success.servers'), t('subscription_settings.title'));
+                await refreshSubscriptionData({ silent: true });
+                await ensureSubscriptionSettingsLoaded({ force: true });
+            } catch (error) {
+                handleSubscriptionSettingsError(error);
+            } finally {
+                subscriptionSettingsAction = null;
+                setSubscriptionSettingsActionLoading('servers', false);
+                renderSubscriptionSettingsCard();
+            }
+        }
+
+        async function submitSubscriptionTrafficChange() {
+            if (subscriptionSettingsAction) {
+                return;
+            }
+            const data = subscriptionSettingsData;
+            if (!data) {
+                try {
+                    await ensureSubscriptionSettingsLoaded({ force: true });
+                } catch (error) {
+                    handleSubscriptionSettingsError(error);
+                }
+                return;
+            }
+
+            const selected = subscriptionSettingsSelections.traffic;
+            const currentValue = data.traffic?.currentValue;
+            if (selected === null || selected === undefined) {
+                handleSubscriptionSettingsError(createError('Validation', t('subscription_settings.error.validation')));
+                return;
+            }
+            if (selected === currentValue) {
+                return;
+            }
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                handleSubscriptionSettingsError(createError('Auth', t('subscription_settings.error.unauthorized')));
+                return;
+            }
+
+            const proceedTraffic = await confirmSubscriptionTrafficUpdate(data, currentValue, selected);
+            if (!proceedTraffic) {
+                return;
+            }
+
+            const payload = {
+                initData,
+                traffic: selected,
+                traffic_gb: selected,
+                trafficGb: selected,
+                subscription_id: data.subscriptionId || userData?.subscription_id || userData?.subscriptionId || null,
+            };
+
+            subscriptionSettingsAction = 'traffic';
+            setSubscriptionSettingsActionLoading('traffic', true);
+
+            try {
+                const response = await fetch('/miniapp/subscription/traffic', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const body = await parseJsonSafe(response);
+                if (!response.ok || (body && body.success === false)) {
+                    const message = extractSettingsError(body, response.status);
+                    throw createError('Subscription settings error', message, response.status);
+                }
+                showPopup(t('subscription_settings.success.traffic'), t('subscription_settings.title'));
+                await refreshSubscriptionData({ silent: true });
+                await ensureSubscriptionSettingsLoaded({ force: true });
+            } catch (error) {
+                handleSubscriptionSettingsError(error);
+            } finally {
+                subscriptionSettingsAction = null;
+                setSubscriptionSettingsActionLoading('traffic', false);
+                renderSubscriptionSettingsCard();
+            }
+        }
+
+        async function submitSubscriptionDevicesChange() {
+            if (subscriptionSettingsAction) {
+                return;
+            }
+            const data = subscriptionSettingsData;
+            if (!data) {
+                try {
+                    await ensureSubscriptionSettingsLoaded({ force: true });
+                } catch (error) {
+                    handleSubscriptionSettingsError(error);
+                }
+                return;
+            }
+
+            const selected = coercePositiveInt(subscriptionSettingsSelections.devices, null);
+            const current = coercePositiveInt(data.devices?.current, coercePositiveInt(data.current?.deviceLimit, 0)) || 0;
+            if (selected === null) {
+                handleSubscriptionSettingsError(createError('Validation', t('subscription_settings.error.validation')));
+                return;
+            }
+            if (selected === current) {
+                return;
+            }
+
+            const min = coercePositiveInt(data.devices?.min, 0) || 0;
+            const max = coercePositiveInt(data.devices?.max, 0) || 0;
+            if (selected < min || (max && selected > max)) {
+                handleSubscriptionSettingsError(createError('Validation', t('subscription_settings.error.validation')));
+                return;
+            }
+
+            const initData = tg.initData || '';
+            if (!initData) {
+                handleSubscriptionSettingsError(createError('Auth', t('subscription_settings.error.unauthorized')));
+                return;
+            }
+
+            const proceedDevices = await confirmSubscriptionDevicesUpdate(data, current, selected);
+            if (!proceedDevices) {
+                return;
+            }
+
+            const payload = {
+                initData,
+                devices: selected,
+                device_limit: selected,
+                deviceLimit: selected,
+                subscription_id: data.subscriptionId || userData?.subscription_id || userData?.subscriptionId || null,
+            };
+
+            subscriptionSettingsAction = 'devices';
+            setSubscriptionSettingsActionLoading('devices', true);
+
+            try {
+                const response = await fetch('/miniapp/subscription/devices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const body = await parseJsonSafe(response);
+                if (!response.ok || (body && body.success === false)) {
+                    const message = extractSettingsError(body, response.status);
+                    throw createError('Subscription settings error', message, response.status);
+                }
+                showPopup(t('subscription_settings.success.devices'), t('subscription_settings.title'));
+                await refreshSubscriptionData({ silent: true });
+                await ensureSubscriptionSettingsLoaded({ force: true });
+            } catch (error) {
+                handleSubscriptionSettingsError(error);
+            } finally {
+                subscriptionSettingsAction = null;
+                setSubscriptionSettingsActionLoading('devices', false);
+                renderSubscriptionSettingsCard();
+            }
+        }
+
         function getCurrentSubscriptionUrl() {
             return userData?.subscription_url || userData?.subscriptionUrl || '';
         }
@@ -6756,6 +10713,31 @@
         document.getElementById('connectBtn')?.addEventListener('click', () => {
             const link = getConnectLink();
             openExternalLink(link);
+        });
+
+        const topupButton = document.getElementById('topupBalanceBtn');
+        if (topupButton) {
+            topupButton.addEventListener('click', () => {
+                openTopupModal();
+            });
+        }
+
+        const topupModal = document.getElementById('topupModal');
+        if (topupModal) {
+            topupModal.addEventListener('click', event => {
+                if (event.target === topupModal) {
+                    closeTopupModal();
+                }
+            });
+        }
+
+        window.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                const { backdrop } = getTopupElements();
+                if (backdrop && !backdrop.classList.contains('hidden')) {
+                    closeTopupModal();
+                }
+            }
         });
 
         document.getElementById('copyBtn')?.addEventListener('click', async () => {
