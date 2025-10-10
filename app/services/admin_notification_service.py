@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database.database import AsyncSessionLocal
 from app.database.crud.promo_group import get_promo_group_by_id
 from app.database.crud.user import get_user_by_id
 from app.database.models import (
@@ -353,57 +354,109 @@ class AdminNotificationService:
         if not self._is_enabled():
             return False
 
-        try:
-            deposit_count_result = await db.execute(
+        async def _prepare_message(
+            session: AsyncSession,
+            *,
+            requery_entities: bool = False
+        ) -> str:
+            current_user = user
+            current_transaction = transaction
+
+            if requery_entities:
+                current_user = await get_user_by_id(session, user.id)
+                if not current_user:
+                    raise ValueError(
+                        f"Пользователь {user.id} не найден для уведомления о пополнении"
+                    )
+
+                current_transaction = await session.get(Transaction, transaction.id)
+                if not current_transaction:
+                    raise ValueError(
+                        f"Транзакция {transaction.id} не найдена для уведомления о пополнении"
+                    )
+
+            deposit_count_result = await session.execute(
                 select(func.count())
                 .select_from(Transaction)
                 .where(
-                    Transaction.user_id == user.id,
+                    Transaction.user_id == current_user.id,
                     Transaction.type == TransactionType.DEPOSIT.value,
                     Transaction.is_completed.is_(True)
                 )
             )
             deposit_count = deposit_count_result.scalar_one() or 0
             topup_status = "🆕 Первое пополнение" if deposit_count <= 1 else "🔄 Пополнение"
-            payment_method = self._get_payment_method_display(transaction.payment_method)
-            balance_change = user.balance_kopeks - old_balance
-            referrer_info = await self._get_referrer_info(db, user.referred_by_id)
-            subscription_result = await db.execute(
-                select(Subscription).where(Subscription.user_id == user.id)
+            payment_method = self._get_payment_method_display(current_transaction.payment_method)
+            balance_change = current_user.balance_kopeks - old_balance
+            referrer_info = await self._get_referrer_info(session, current_user.referred_by_id)
+            subscription_result = await session.execute(
+                select(Subscription).where(Subscription.user_id == current_user.id)
             )
             subscription = subscription_result.scalar_one_or_none()
             subscription_status = self._get_subscription_status(subscription)
-            promo_group = await self._get_user_promo_group(db, user)
+            promo_group = await self._get_user_promo_group(session, current_user)
             promo_block = self._format_promo_group_block(promo_group)
 
-            message = f"""💰 <b>ПОПОЛНЕНИЕ БАЛАНСА</b>
+            return f"""💰 <b>ПОПОЛНЕНИЕ БАЛАНСА</b>
 
-👤 <b>Пользователь:</b> {user.full_name}
-🆔 <b>Telegram ID:</b> <code>{user.telegram_id}</code>
-📱 <b>Username:</b> @{user.username or 'отсутствует'}
+👤 <b>Пользователь:</b> {current_user.full_name}
+🆔 <b>Telegram ID:</b> <code>{current_user.telegram_id}</code>
+📱 <b>Username:</b> @{current_user.username or 'отсутствует'}
 💳 <b>Статус:</b> {topup_status}
 
 {promo_block}
 
 💰 <b>Детали пополнения:</b>
-💵 Сумма: {settings.format_price(transaction.amount_kopeks)}
+💵 Сумма: {settings.format_price(current_transaction.amount_kopeks)}
 💳 Способ: {payment_method}
-🆔 ID транзакции: {transaction.id}
+🆔 ID транзакции: {current_transaction.id}
 
 💰 <b>Баланс:</b>
 📉 Было: {settings.format_price(old_balance)}
-📈 Стало: {settings.format_price(user.balance_kopeks)}
+📈 Стало: {settings.format_price(current_user.balance_kopeks)}
 ➕ Изменение: +{settings.format_price(balance_change)}
 
 🔗 <b>Реферер:</b> {referrer_info}
 📱 <b>Подписка:</b> {subscription_status}
 
 ⏰ <i>{datetime.now().strftime('%d.%m.%Y %H:%M:%S')}</i>"""
-            
-            return await self._send_message(message)
-            
-        except Exception as e:
-            logger.error(f"Ошибка отправки уведомления о пополнении: {e}")
+
+        try:
+            message_text = await _prepare_message(db)
+        except RuntimeError as runtime_error:
+            error_message = str(runtime_error)
+            if "greenlet_spawn has not been called" not in error_message:
+                logger.error(f"Ошибка подготовки уведомления о пополнении: {runtime_error}")
+                return False
+
+            logger.warning(
+                "Повторная подготовка уведомления о пополнении в отдельной сессии из-за ошибки greenlet: %s",
+                runtime_error,
+            )
+
+            try:
+                async with AsyncSessionLocal() as fallback_session:
+                    message_text = await _prepare_message(
+                        fallback_session,
+                        requery_entities=True
+                    )
+            except Exception as fallback_error:
+                logger.error(
+                    "Ошибка повторной подготовки уведомления о пополнении: %s",
+                    fallback_error,
+                )
+                return False
+        except Exception as general_error:
+            logger.error(
+                "Ошибка подготовки уведомления о пополнении: %s",
+                general_error,
+            )
+            return False
+
+        try:
+            return await self._send_message(message_text)
+        except Exception as send_error:
+            logger.error(f"Ошибка отправки уведомления о пополнении: {send_error}")
             return False
     
     async def send_subscription_extension_notification(
