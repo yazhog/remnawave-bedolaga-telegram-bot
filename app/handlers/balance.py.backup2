@@ -403,23 +403,12 @@ async def start_pal24_payment(
         await callback.answer("❌ Оплата через PayPalych временно недоступна", show_alert=True)
         return
 
-    # Формируем текст сообщения в зависимости от доступных способов оплаты
-    if settings.is_pal24_sbp_button_visible() and settings.is_pal24_card_button_visible():
-        payment_methods_text = "СБП и банковской картой"
-    elif settings.is_pal24_sbp_button_visible():
-        payment_methods_text = "СБП"
-    elif settings.is_pal24_card_button_visible():
-        payment_methods_text = "банковской картой"
-    else:
-        # Если обе кнопки отключены, используем общий текст
-        payment_methods_text = "доступными способами"
-
     message_text = texts.t(
         "PAL24_TOPUP_PROMPT",
         (
-            f"🏦 <b>Оплата через PayPalych ({payment_methods_text})</b>\n\n"
+            "🏦 <b>Оплата через PayPalych (СБП)</b>\n\n"
             "Введите сумму для пополнения от 100 до 1 000 000 ₽.\n"
-            f"Оплата проходит через PayPalych ({payment_methods_text})."
+            "Оплата проходит через систему быстрых платежей PayPalych."
         ),
     )
 
