@@ -1,9 +1,7 @@
-"""add external_squad_uuid column to tariffs
+"""Add background_config to landing_pages
 
-Stores the RemnaWave External Squad UUID to assign to users on this tariff.
-
-Revision ID: 0026
-Revises: 0025
+Revision ID: 0030
+Revises: 0029
 """
 
 from typing import Sequence, Union
@@ -11,8 +9,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = '0026'
-down_revision: Union[str, None] = '0025'
+revision: str = '0030'
+down_revision: Union[str, None] = '0029'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -24,9 +22,9 @@ def _has_column(table: str, column: str) -> bool:
 
 
 def upgrade() -> None:
-    if not _has_column('tariffs', 'external_squad_uuid'):
-        op.add_column('tariffs', sa.Column('external_squad_uuid', sa.String(255), nullable=True))
+    if not _has_column('landing_pages', 'background_config'):
+        op.add_column('landing_pages', sa.Column('background_config', sa.JSON(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('tariffs', 'external_squad_uuid')
+    op.drop_column('landing_pages', 'background_config')
