@@ -106,6 +106,36 @@ async def test_build_button_connect_callback_mode():
     assert button.web_app is None
 
 
+def test_build_button_cabinet_mode_opens_miniapp_for_known_route():
+    """Built-in buttons from the menu constructor honour Cabinet mode."""
+    button_config = {
+        'type': 'builtin',
+        'builtin_id': 'balance',
+        'text': {'ru': '💰 Баланс'},
+        'action': 'menu_balance',
+        'open_mode': 'callback',
+    }
+    context = MenuContext(language='ru')
+    texts = MagicMock()
+    texts.t = lambda key, default: default
+
+    with (
+        patch('app.services.menu_layout.service.settings') as service_settings,
+        patch('app.utils.miniapp_buttons.settings') as miniapp_settings,
+    ):
+        service_settings.is_cabinet_mode.return_value = True
+        miniapp_settings.is_cabinet_mode.return_value = True
+        miniapp_settings.MINIAPP_CUSTOM_URL = 'https://cabinet.example.com'
+        miniapp_settings.CABINET_BUTTON_STYLE = ''
+
+        button = MenuLayoutService._build_button(button_config, context, texts)
+
+    assert button is not None
+    assert button.web_app is not None
+    assert button.web_app.url == 'https://cabinet.example.com/balance'
+    assert button.callback_data is None
+
+
 @pytest.mark.anyio
 async def test_build_button_connect_direct_mode_fallback_to_callback():
     """Тест: кнопка connect с open_mode=direct без URL должна fallback на callback."""

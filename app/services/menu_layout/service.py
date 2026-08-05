@@ -18,6 +18,7 @@ from app.config import settings
 from app.database.crud.system_setting import upsert_system_setting
 from app.database.models import SystemSetting
 from app.localization.texts import get_texts
+from app.utils.miniapp_buttons import build_miniapp_or_callback_button
 
 from .constants import (
     AVAILABLE_CALLBACKS,
@@ -1058,6 +1059,18 @@ class MenuLayoutService:
         if button_type == 'callback':
             # Кастомная кнопка с callback_data
             return InlineKeyboardButton(text=text, callback_data=action, icon_custom_emoji_id=custom_emoji_id)
+
+        # The menu-layout constructor is an alternative renderer for the same
+        # built-in menu.  Keep its Cabinet behaviour in sync with the classic
+        # renderer: known menu actions become WebApp buttons, while actions
+        # without a Cabinet route safely remain callbacks.
+        if settings.is_cabinet_mode():
+            return build_miniapp_or_callback_button(
+                text=text,
+                callback_data=action,
+                icon_custom_emoji_id=custom_emoji_id,
+            )
+
         # builtin - проверяем open_mode
         if open_mode == 'direct':
             # Прямое открытие Mini App через WebAppInfo
